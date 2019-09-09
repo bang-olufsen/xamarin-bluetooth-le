@@ -13,11 +13,14 @@ using Plugin.BLE.Extensions;
 using Object = Java.Lang.Object;
 using Trace = Plugin.BLE.Abstractions.Trace;
 using Android.App;
+using BC.Mobile.Logging;
 
 namespace Plugin.BLE.Android
 {
     public class Adapter : AdapterBase
     {
+        private readonly ILogger _logger = LoggerFactory.CreateLogger(nameof(Adapter));
+
         private readonly BluetoothManager _bluetoothManager;
         private readonly BluetoothAdapter _bluetoothAdapter;
         private readonly Api18BleScanCallback _api18ScanCallback;
@@ -65,6 +68,7 @@ namespace Plugin.BLE.Android
 
         protected override Task StartScanningForDevicesNativeAsync(Guid[] serviceUuids, bool allowDuplicatesKey, CancellationToken scanCancellationToken)
         {
+            _logger.Debug(() => "BLE: Start scanning for devices");
             // clear out the list
             DiscoveredDevices.Clear();
 
@@ -131,6 +135,8 @@ namespace Plugin.BLE.Android
 
         protected override void StopScanNative()
         {
+            _logger.Debug(() => "BLE: Stop scanning for devices");
+
             if (Build.VERSION.SdkInt < BuildVersionCodes.Lollipop)
             {
                 Trace.Message("Adapter < 21: Stopping the scan for devices.");
@@ -148,18 +154,23 @@ namespace Plugin.BLE.Android
         protected override Task ConnectToDeviceNativeAsync(IDevice device, ConnectParameters connectParameters,
             CancellationToken cancellationToken)
         {
+            _logger.Debug(() => "BLE: Connecting to " + device.Name + "/" + device.Id);
             ((Device)device).Connect(connectParameters);
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
         protected override void DisconnectDeviceNative(IDevice device)
         {
+            _logger.Debug(() => "BLE: Disconnecting from " + device.Name + "/" + device.Id);
+
             //make sure everything is disconnected
             ((Device)device).Disconnect();
         }
 
         public override async Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters = default(ConnectParameters), CancellationToken cancellationToken = default(CancellationToken))
         {
+            _logger.Debug(() => "BLE: Connecting to known device " + deviceGuid);
+
             var macBytes = deviceGuid.ToByteArray().Skip(10).Take(6).ToArray();
             var nativeDevice = _bluetoothAdapter.GetRemoteDevice(macBytes);
 
