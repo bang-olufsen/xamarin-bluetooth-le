@@ -106,5 +106,8 @@
       <Name>BC.Mobile.Logging.iOS</Name>
     </ProjectReference>
   </ItemGroup>
-  <Import Project="$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.iOS.CSharp.targets" />
+  <Import Project="$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.iOS.CSharp.targets" Condition="Exists('$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.iOS.CSharp.targets')" />
+  <Target Name="VSTest">
+    <Message Text="No tests because this is a Xamarin.Android project" />
+  </Target>
 </Project>
