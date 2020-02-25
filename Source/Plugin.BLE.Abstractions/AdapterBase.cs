@@ -11,6 +11,9 @@ namespace Plugin.BLE.Abstractions
 {
     public abstract class AdapterBase : IAdapter
     {
+        protected const int MaxConnectionWaitTimeMS = 4_000;
+        protected const int MaxScanTimeMS = 5_000;
+
         private CancellationTokenSource _scanCancellationTokenSource;
         private readonly IList<IDevice> _discoveredDevices;
         private volatile bool _isScanning;
@@ -62,14 +65,17 @@ namespace Plugin.BLE.Abstractions
                     await StartScanningForDevicesNativeAsync(serviceUuids, allowDuplicatesKey, _scanCancellationTokenSource.Token);
                     await Task.Delay(ScanTimeout, _scanCancellationTokenSource.Token);
                     Trace.Message("Adapter: Scan timeout has elapsed.");
-                    CleanupScan();
                     ScanTimeoutElapsed(this, new System.EventArgs());
                 }
             }
             catch (TaskCanceledException)
             {
-                CleanupScan();
+
                 Trace.Message("Adapter: Scan was cancelled.");
+            }
+            finally
+            {
+                CleanupScan();
             }
         }
 
@@ -87,6 +93,11 @@ namespace Plugin.BLE.Abstractions
             return Task.FromResult(0);
         }
 
+        public Task<IDevice> ConnectAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return ConnectNativeAsync(uuid, deviceFilter, cancellationToken);
+        }
+
         public async Task ConnectToDeviceAsync(IDevice device, ConnectParameters connectParameters = default(ConnectParameters), CancellationToken cancellationToken = default(CancellationToken))
         {
             if (device == null)
@@ -95,38 +106,60 @@ namespace Plugin.BLE.Abstractions
             if (device.State == DeviceState.Connected)
                 return;
 
-            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            var tryForAWhile = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, tryForAWhile.Token))
             {
-                await TaskBuilder.FromEvent<bool, EventHandler<DeviceEventArgs>, EventHandler<DeviceErrorEventArgs>>(
-                    execute: () =>
+                var foundDevice = false;
+                var tryCount = 0;
+                while (cts.Token.IsCancellationRequested == false && foundDevice == false)
+                {
+                    tryCount++;
+                    Trace.Message("Trying to connect, tries {0}", tryCount);
+                    try
                     {
-                        ConnectToDeviceNativeAsync(device, connectParameters, cts.Token);
-                    },
+                        foundDevice = await TaskBuilder.FromEvent<bool, EventHandler<DeviceEventArgs>, EventHandler<DeviceErrorEventArgs>>(
+                            execute: () =>
+                            {
+                                ConnectToDeviceNativeAsync(device, connectParameters, cts.Token);
+                            },
 
-                    getCompleteHandler: (complete, reject) => (sender, args) =>
+                            getCompleteHandler: (complete, reject) => (sender, args) =>
+                            {
+                                if (args.Device.Id == device.Id)
+                                {
+                                    Trace.Message("ConnectToDeviceAsync Connected: {0} {1}", args.Device.Id, args.Device.Name);
+                                    complete(true);
+                                }
+                            },
+                            subscribeComplete: handler => DeviceConnected += handler,
+                            unsubscribeComplete: handler => DeviceConnected -= handler,
+
+                            getRejectHandler: reject => (sender, args) =>
+                            {
+                                if (args.Device?.Id == device.Id)
+                                {
+                                    Trace.Message("ConnectAsync Error: {0} {1}", args.Device?.Id, args.Device?.Name);
+                                    reject(new DeviceConnectionException((Guid)args.Device?.Id, args.Device?.Name,
+                                        args.ErrorMessage));
+                                }
+                            },
+
+                            subscribeReject: handler => DeviceConnectionError += handler,
+                            unsubscribeReject: handler => DeviceConnectionError -= handler,
+                            token: cts.Token);
+                    }
+                    catch (Exception)
                     {
-                        if (args.Device.Id == device.Id)
+                        if (cts.Token.IsCancellationRequested)
                         {
-                            Trace.Message("ConnectToDeviceAsync Connected: {0} {1}", args.Device.Id, args.Device.Name);
-                            complete(true);
+                            Trace.Message("Connecting to {0} {1} timed out after {2} tries", device.Id, device.Name, tryCount);
+                            throw;
                         }
-                    },
-                    subscribeComplete: handler => DeviceConnected += handler,
-                    unsubscribeComplete: handler => DeviceConnected -= handler,
+                    }
+                }
 
-                    getRejectHandler: reject => (sender, args) =>
-                    {
-                        if (args.Device?.Id == device.Id)
-                        {
-                            Trace.Message("ConnectAsync Error: {0} {1}", args.Device?.Id, args.Device?.Name);
-                            reject(new DeviceConnectionException((Guid)args.Device?.Id, args.Device?.Name,
-                                args.ErrorMessage));
-                        }
-                    },
-
-                    subscribeReject: handler => DeviceConnectionError += handler,
-                    unsubscribeReject: handler => DeviceConnectionError -= handler,
-                    token: cts.Token);
+                Trace.Message((foundDevice ? "Succeeded" : "Gave up") + " after {0} tries", tryCount);
             }
         }
 
@@ -231,6 +264,7 @@ namespace Plugin.BLE.Abstractions
         protected abstract void StopScanNative();
         protected abstract Task ConnectToDeviceNativeAsync(IDevice device, ConnectParameters connectParameters, CancellationToken cancellationToken);
         protected abstract void DisconnectDeviceNative(IDevice device);
+        protected abstract Task<IDevice> ConnectNativeAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken));
 
         public abstract Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters = default(ConnectParameters), CancellationToken cancellationToken = default(CancellationToken));
         public abstract List<IDevice> GetSystemConnectedOrPairedDevices(Guid[] services = null);

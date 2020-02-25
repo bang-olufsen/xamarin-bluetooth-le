@@ -14,6 +14,7 @@ using Object = Java.Lang.Object;
 using Trace = Plugin.BLE.Abstractions.Trace;
 using Android.App;
 using BC.Mobile.Logging;
+using Plugin.BLE.Abstractions.EventArgs;
 
 namespace Plugin.BLE.Android
 {
@@ -193,6 +194,52 @@ namespace Plugin.BLE.Android
             var bondedDevices = _bluetoothAdapter.BondedDevices.Where(d => d.Type == BluetoothDeviceType.Le || d.Type == BluetoothDeviceType.Dual);
 
             return connectedDevices.Union(bondedDevices, new DeviceComparer()).Select(d => new Device(this, d, null, 0)).Cast<IDevice>().ToList();
+        }
+
+        protected override async Task<IDevice> ConnectNativeAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            if (uuid == Guid.Empty)
+            {
+                var stopToken = new CancellationTokenSource();
+                var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(stopToken.Token, cancellationToken).Token;
+                var taskCompletionSource = new TaskCompletionSource<IDevice>();
+                EventHandler<DeviceEventArgs> handler = (sender, args) =>
+                {
+                    if (taskCompletionSource.TrySetResult(args.Device))
+                    {
+                        stopToken.Cancel();
+                    }
+                };
+
+                try
+                {
+                    DeviceDiscovered += handler;
+                    async Task<IDevice> WaitAsync()
+                    {
+                        await Task.Delay(MaxScanTimeMS);
+                        return null;
+                    }
+
+                    var scanTask = StartScanningForDevicesAsync(deviceFilter: deviceFilter, cancellationToken: linkedToken);
+                    var device = await await Task.WhenAny(taskCompletionSource.Task, WaitAsync());
+
+                    // make sure to wait for the scan to complete before connecting to avoid doing multiple things at once. If a
+                    // device was matched, then it should already have completed through the cancellation, otherwise it is
+                    // controlled by the scan timeout
+                    await scanTask;
+
+                    await ConnectToDeviceAsync(device, new ConnectParameters(false, true), cancellationToken);
+                    return device;
+                }
+                finally
+                {
+                    DeviceDiscovered -= handler;
+                }
+            }
+            else
+            {                
+                return await ConnectToKnownDeviceAsync(uuid, new ConnectParameters(false, true), cancellationToken);
+            }
         }
 
         private class DeviceComparer : IEqualityComparer<BluetoothDevice>
