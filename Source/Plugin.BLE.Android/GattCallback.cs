@@ -111,8 +111,7 @@ namespace Plugin.BLE.Android
                 // connected
                 case ProfileState.Connected:
                     Trace.Message("Connected");
-
-                    //Check if the operation was requested by the user                    
+                    //Check if the operation was requested by the user
                     if (_device.IsOperationRequested)
                     {
                         _device.Update(gatt.Device, gatt);
@@ -144,6 +143,42 @@ namespace Plugin.BLE.Android
                             Trace.Info($"Address or device is null address is: {gatt.Device.Address} device is: {_device} GattStatus is: {status}");
                             return;
                         }
+
+                        switch (_device.BluetoothDevice.BondState)
+                        {
+                            case Bond.Bonded:
+                            case Bond.None:
+                            // Connected to device, now proceed to discover it's services but delay a bit if needed
+                                //         int delayWhenBonded = 0;
+                                //         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.N) {
+                                //             delayWhenBonded = 1000;
+                                //         }
+                                //         final int delay = bondstate == BOND_BONDED ? delayWhenBonded : 0;
+                                //         discoverServicesRunnable = new Runnable() {
+                                //             @Override
+                                //             public void run() {
+                                //             Log.d(TAG, String.format(Locale.ENGLISH, "discovering services of '%s' with delay of %d ms", getName(), delay));
+                                //             boolean result = gatt.discoverServices();
+                                //             if (!result) {
+                                //             Log.e(TAG, "discoverServices failed to start");
+                                //         }
+                                //         discoverServicesRunnable = null;
+                                // }
+                                // };
+                                // bleHandler.postDelayed(discoverServicesRunnable, delay);
+                                break;
+                            case Bond.Bonding:
+                            //should wait till bonded
+                            // Bonding process in progress, let it complete
+                            // Log.i(TAG, "waiting for bonding to complete");
+                                break;
+                            // case Bond.None:
+                            // // gatt.DiscoverServices();
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+
+
 
                         lock (_adapter.ConnectedDeviceRegistryLock)
                         {
@@ -177,9 +212,23 @@ namespace Plugin.BLE.Android
         public override void OnServicesDiscovered(BluetoothGatt gatt, GattStatus status)
         {
             base.OnServicesDiscovered(gatt, status);
-
+            //gattstatus needs to be updated with even more states/codes
+// status == GattStatus.Failure
+// {
+//     disconect
+// }
             Trace.Message("OnServicesDiscovered: {0}", status.ToString());
-
+            // status switch
+            // {
+            // The device disconnected itself on purpose. For example, because all data has been transferred and there is nothing else to to. You will receive status 19 (GATT_CONN_TERMINATE_PEER_USER).
+            //     The connection timed out and the device disconnected itself. In this case you’ll get a status 8 (GATT_CONN_TIMEOUT)
+            // There was an low-level error in the communication which led to the loss of the connection. Typically you would receive a status 133 (GATT_ERROR) or a more specific error code if you are lucky!
+            // The stack never managed to connect in the first place. In this case you will also receive a status 133 (GATT_ERROR)
+            // The connection was lost during service discovery or bonding. In this case you will want to investigate why this happened and perhaps retry the connection.
+        //     The first two cases are totally normal and there is nothing else to do than call close() and perhaps do some internal cleanup like disposing of the BluetoothGatt object.
+        // In the other cases, you may want to do something like informing other parts of your app or showing something in the UI. If there was a communication error you might be doing something wrong yourself. Alternatively, the device might be doing something wrong. Either way, something to deal with! It is a bit up to you to what extend you want to deal with all possible cases.
+        //    https://github.com/weliem/blessed-android/blob/master/blessed/src/main/java/com/welie/blessed/BluetoothPeripheral.java#L234
+            // };
             ServicesDiscovered?.Invoke(this, new ServicesDiscoveredCallbackEventArgs());
         }
 
@@ -257,6 +306,7 @@ namespace Plugin.BLE.Android
             switch (status)
             {
                 case GattStatus.Failure:
+                //close and try again (hope this is the 133 error code)
                 case GattStatus.InsufficientAuthentication:
                 case GattStatus.InsufficientEncryption:
                 case GattStatus.InvalidAttributeLength:

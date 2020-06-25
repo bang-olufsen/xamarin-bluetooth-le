@@ -25,7 +25,7 @@ namespace Plugin.BLE.Abstractions
 
         public CharacteristicWriteType WriteType
         {
-            get { return _writeType; }
+            get => _writeType;
             set
             {
                 if (value == CharacteristicWriteType.WithResponse && !Properties.HasFlag(CharacteristicPropertyType.Write) ||
@@ -65,31 +65,55 @@ namespace Plugin.BLE.Abstractions
 
         public async Task<byte[]> ReadAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (!CanRead)
+            try
             {
-                throw new InvalidOperationException("Characteristic does not support read.");
-            }
+                if (!CanRead)
+                {
+                    throw new InvalidOperationException("Characteristic does not support read.");
+                }
 
-            Trace.Message("Characteristic.ReadAsync");
-            return await ReadNativeAsync(cancellationToken);
+                Trace.Message("Characteristic.ReadAsync");
+                return await ReadNativeAsync(cancellationToken);
+            }
+            catch (Exception e)
+            {
+                throw new InvalidOperationException(e.Message);
+            }
+            finally
+            {
+            //notify listener
+            //operationManager.opreation completed
+            }
         }
 
         public async Task<bool> WriteAsync(byte[] data, CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (data == null)
+            try
             {
-                throw new ArgumentNullException(nameof(data));
-            }
+                if (data == null)
+                {
+                    throw new ArgumentNullException(nameof(data));
+                }
 
-            if (!CanWrite)
+                if (!CanWrite)
+                {
+                    throw new InvalidOperationException("Characteristic does not support write.");
+                }
+
+                var writeType = GetWriteType();
+
+                Trace.Message("Characteristic.WriteAsync");
+                return await WriteNativeAsync(data, writeType, cancellationToken);
+            }
+            catch (Exception e)
             {
-                throw new InvalidOperationException("Characteristic does not support write.");
+                throw new InvalidOperationException(e.Message);
             }
-
-            var writeType = GetWriteType();
-
-            Trace.Message("Characteristic.WriteAsync");
-            return await WriteNativeAsync(data, writeType, cancellationToken);
+            finally
+            {
+                //notify listener
+                //operationManager.opreation completed
+            }
         }
 
         private CharacteristicWriteType GetWriteType()

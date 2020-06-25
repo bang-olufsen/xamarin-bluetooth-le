@@ -109,10 +109,12 @@ namespace Plugin.BLE.Android
                     scanFilters.Add(sfb.Build());
                 }
             }
-
-            var ssb = new ScanSettings.Builder();
-            ssb.SetScanMode(ScanMode.ToNative());
-            //ssb.SetCallbackType(ScanCallbackType.AllMatches);
+            var ssb = new ScanSettings.Builder()
+                .SetScanMode(ScanMode.ToNative())
+                .SetCallbackType(ScanCallbackType.AllMatches)
+                .SetMatchMode(BluetoothScanMatchMode.Aggressive)
+                .SetNumOfMatches((int)BluetoothScanMatchNumber.FewAdvertisement)
+                .SetReportDelay(0);
 
             if (_bluetoothAdapter.BluetoothLeScanner != null)
             {
@@ -162,6 +164,12 @@ namespace Plugin.BLE.Android
         {
             var macBytes = deviceGuid.ToByteArray().Skip(10).Take(6).ToArray();
             var nativeDevice = _bluetoothAdapter.GetRemoteDevice(macBytes);
+            if (nativeDevice.Type == BluetoothDeviceType.Unknown )//nativeDevice.GetType() == BluetoothDevice.DeviceTypeUnknown)
+            {
+                //the peripheral is not cached
+                //should trigger a new scan
+                Trace.Message($"Caution: the peripheral is not cached should trigger a new scan Android.{nativeDevice.Name} mac:{macBytes}");
+            }
 
             var device = new Device(this, nativeDevice, null, 0, new byte[] { });
 

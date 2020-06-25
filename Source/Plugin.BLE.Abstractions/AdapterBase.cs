@@ -29,12 +29,13 @@ namespace Plugin.BLE.Abstractions
 
         public bool IsScanning
         {
-            get { return _isScanning; }
-            private set { _isScanning = value; }
+            get => _isScanning;
+            private set => _isScanning = value;
         }
 
         public int ScanTimeout { get; set; } = 10000;
-        public ScanMode ScanMode { get; set; } = ScanMode.LowPower;
+
+        public ScanMode ScanMode { get; set; } = ScanMode.Balanced;
 
         public virtual IList<IDevice> DiscoveredDevices => _discoveredDevices;
 

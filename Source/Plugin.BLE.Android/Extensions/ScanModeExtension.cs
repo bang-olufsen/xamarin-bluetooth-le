@@ -13,9 +13,6 @@ namespace Plugin.BLE.Extensions
     {
         public static AndroidScanMode ToNative(this ScanMode scanMode)
         {
-            if (Build.VERSION.SdkInt < BuildVersionCodes.Lollipop)
-                throw new InvalidOperationException("Scan modes are not implemented in API lvl < 21.");
-
             switch (scanMode)
             {
                 case ScanMode.Passive:

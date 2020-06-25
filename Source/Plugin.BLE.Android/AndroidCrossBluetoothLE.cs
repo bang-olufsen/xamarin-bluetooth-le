@@ -4,7 +4,7 @@ using Plugin.BLE.Abstractions.Contracts;
 namespace Plugin.BLE
 {
     /// <summary>
-    /// Cross platform bluetooth LE implemenation.
+    /// Cross platform bluetooth LE implementation.
     /// </summary>
     public class AndroidCrossBluetoothLE : ICrossBluetoothLE
     {

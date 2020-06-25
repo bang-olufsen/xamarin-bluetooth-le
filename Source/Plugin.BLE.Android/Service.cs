@@ -25,6 +25,7 @@ namespace Plugin.BLE.Android
             _gattCallback = gattCallback;
         }
 
+//max 15 characteristics per peripheral
         protected override Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult<IList<ICharacteristic>>(

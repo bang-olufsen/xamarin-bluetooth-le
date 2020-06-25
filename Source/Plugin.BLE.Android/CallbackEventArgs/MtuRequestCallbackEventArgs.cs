@@ -1,5 +1,4 @@
 ﻿using System;
-using Plugin.BLE.Abstractions.Contracts;
 
 namespace Plugin.BLE.Android.CallbackEventArgs
 {

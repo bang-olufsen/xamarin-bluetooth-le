@@ -67,7 +67,7 @@ namespace Plugin.BLE
             Task task;
             lock (_queueLock)
             {
-                if (_queue.Count == 0)
+                if (_queue.Count == 0 || _queue.Peek() == null)
                 {
                     _isRunning = 0;
                     return;
