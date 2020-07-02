@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Android.Bluetooth;
+using Java.Lang.Reflect;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Abstractions.Utils;
@@ -95,5 +96,20 @@ namespace Plugin.BLE.Android
             if (!_gatt.ReadDescriptor(_nativeDescriptor))
                 throw new Exception("GATT: read characteristic FALSE");
         }
+
+        private bool ClearServicesCache()
+        {
+            bool result = false;
+            try {
+                Method refreshMethod = _gatt.Class.GetMethod("refresh");
+                if(refreshMethod != null) {
+                    result = (bool) refreshMethod.Invoke(_gatt);
+                }
+            } catch (Exception e) {
+                throw new Exception("GATT: Could not invoke refresh method");
+            }
+            return result;
+        }
+
     }
 }

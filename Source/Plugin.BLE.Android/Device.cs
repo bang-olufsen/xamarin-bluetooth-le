@@ -62,7 +62,10 @@ namespace Plugin.BLE.Android
             }
 
             return await TaskBuilder.FromEvent<IEnumerable<IService>, EventHandler<ServicesDiscoveredCallbackEventArgs>, EventHandler>(
-                execute: () => _gatt.DiscoverServices(),
+                execute: () =>
+                {
+                    _gatt.DiscoverServices();
+                },
                 getCompleteHandler: (complete, reject) => ((sender, args) =>
                 {
                     complete(_gatt.Services.Select(service => new Service(service, _gatt, _gattCallback, this)));

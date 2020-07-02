@@ -1,6 +1,6 @@
 ﻿using System;
 using Android.Bluetooth;
-using Plugin.BLE.Abstractions.Exceptions;
+
 namespace Plugin.BLE.Android.CallbackEventArgs
 {
     public class DescriptorCallbackEventArgs

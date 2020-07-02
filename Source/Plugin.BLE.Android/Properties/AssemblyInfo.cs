@@ -1,7 +1,6 @@
-﻿using System.Reflection;
-using System.Runtime.CompilerServices;
+﻿// Copyright (C) 2020 Bang & Olufsen A/S - All Rights Reserved
+using System.Reflection;
 using System.Runtime.InteropServices;
-using Android.App;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
