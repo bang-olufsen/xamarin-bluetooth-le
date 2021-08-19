@@ -40,15 +40,8 @@ namespace Plugin.BLE
 
         private BluetoothState GetState()
         {
-            if (UIDevice.CurrentDevice.CheckSystemVersion(10, 0))
-            {
-                var manager = (CBManager)_centralManager;
-                return manager.State.ToBluetoothState();
-            }
-            else
-            {
-                return _centralManager.State.ToBluetoothState();
-            }
+            var manager = (CBManager)_centralManager;
+            return manager.State.ToBluetoothState();
         }
     }
 }
