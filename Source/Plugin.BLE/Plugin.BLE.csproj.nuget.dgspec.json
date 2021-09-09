@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE/Plugin.BLE.csproj": {}
+  },
+  "projects": {
+    "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE.Abstractions/Plugin.BLE.Abstractions.csproj": {
+      "restore": {
+        "projectUniqueName": "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE.Abstractions/Plugin.BLE.Abstractions.csproj",
+        "projectName": "Plugin.BLE.Abstractions",
+        "projectPath": "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE.Abstractions/Plugin.BLE.Abstractions.csproj",
+        "projectJsonPath": "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE.Abstractions/project.json",
+        "packagesPath": "/Users/mygind/.nuget/packages/",
+        "outputPath": "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE.Abstractions/obj/",
+        "projectStyle": "ProjectJson",
+        "validateRuntimeAssets": true,
+        "configFilePaths": [
+          "/Users/mygind/workspaces/2BeoCloud.Mobile/src/NuGet.Config",
+          "/Users/mygind/.config/NuGet/NuGet.Config"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netstandard1.5": {
+            "projectReferences": {}
+          }
+        }
+      },
+      "dependencies": {
+        "NETStandard.Library": "[1.6.0, )"
+      },
+      "frameworks": {
+        "netstandard1.5": {}
+      }
+    },
+    "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE/Plugin.BLE.csproj": {
+      "restore": {
+        "projectUniqueName": "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE/Plugin.BLE.csproj",
+        "projectName": "Plugin.BLE",
+        "projectPath": "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE/Plugin.BLE.csproj",
+        "projectJsonPath": "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE/project.json",
+        "packagesPath": "/Users/mygind/.nuget/packages/",
+        "projectStyle": "ProjectJson",
+        "configFilePaths": [
+          "/Users/mygind/workspaces/2BeoCloud.Mobile/src/NuGet.Config",
+          "/Users/mygind/.config/NuGet/NuGet.Config"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netstandard1.5": {
+            "projectReferences": {
+              "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE.Abstractions/Plugin.BLE.Abstractions.csproj": {
+                "projectPath": "/Users/mygind/workspaces/2BeoCloud.Mobile/src/Plugin.BLE/Source/Plugin.BLE.Abstractions/Plugin.BLE.Abstractions.csproj"
+              }
+            }
+          }
+        }
+      },
+      "dependencies": {
+        "NETStandard.Library": "[1.6.0, )"
+      },
+      "frameworks": {
+        "netstandard1.5": {}
+      }
+    }
+  }
+}
