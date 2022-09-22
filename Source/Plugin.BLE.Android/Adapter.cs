@@ -10,9 +10,13 @@ using Java.Util;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Extensions;
+using Plugin.BLE.Abstractions.EventArgs;
+using BC.Mobile.Managers;
+using BC.Mobile.Strings;
+using Unity;
+using BC.Mobile.Utilities.Messaging;
 using Object = Java.Lang.Object;
 using Trace = Plugin.BLE.Abstractions.Trace;
-using Plugin.BLE.Abstractions.EventArgs;
 
 namespace Plugin.BLE.Android
 {
@@ -287,6 +291,23 @@ namespace Plugin.BLE.Android
             {
                 Trace.Message("Adapter: Scan failed with code {0}", errorCode);
                 base.OnScanFailed(errorCode);
+
+                //Same errorcode as shown on LightBlue app ("SCAN_FAILED_APPLICATION_REGISTRATION_FAILED")
+                //Will trigger if BLE scanner fails to register app
+                //Prompt user to restart device
+                if (errorCode == (ScanFailure)2)
+                {
+                    var notificationService = BC.Mobile.AppContext.Container.Resolve<INotificationManager>();
+
+                    string errorMessage = FeatureResources.GeneralBluetooth + " " + FeatureResources.DiagnosticsError + ". " +
+                        FeatureResources.GeneralRestart + " " + FeatureResources.GeneralDevice + ".";
+
+                    notificationService.ShowNotification(new NotificationMessage(
+                        errorMessage,
+                        BC.Mobile.Utilities.Messaging.Snackbar.NotificationType.Alert,
+                        CooldownDuration.TenSecondsInSec,
+                        NotificationDuration.FifteenSecondsInMs));
+                }
             }
 
             public override void OnScanResult(ScanCallbackType callbackType, ScanResult result)
