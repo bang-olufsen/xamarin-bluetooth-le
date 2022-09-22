@@ -274,7 +274,7 @@ namespace Plugin.BLE.Android
             }
         }
 
-
+        //heh
         public class Api21BleScanCallback : ScanCallback
         {
             private readonly Adapter _adapter;
