@@ -17,6 +17,7 @@ using Unity;
 using BC.Mobile.Utilities.Messaging;
 using Object = Java.Lang.Object;
 using Trace = Plugin.BLE.Abstractions.Trace;
+using BC.Mobile.Logging;
 
 namespace Plugin.BLE.Android
 {
@@ -28,6 +29,7 @@ namespace Plugin.BLE.Android
         private readonly Api21BleScanCallback _api21ScanCallback;
 
         public override IList<IDevice> ConnectedDevices => ConnectedDeviceRegistry.Values.ToList();
+        private static readonly ILogger _logger = LoggerFactory.CreateLogger(nameof(Adapter));
 
         /// <summary>
         /// Used to store all connected devices
@@ -290,6 +292,8 @@ namespace Plugin.BLE.Android
             public override void OnScanFailed(ScanFailure errorCode)
             {
                 Trace.Message("Adapter: Scan failed with code {0}", errorCode);
+                _logger.Warn("Adapter: scan failed with code: " + errorCode);
+
                 base.OnScanFailed(errorCode);
 
                 //Same errorcode as shown on LightBlue app ("SCAN_FAILED_APPLICATION_REGISTRATION_FAILED")
@@ -307,6 +311,8 @@ namespace Plugin.BLE.Android
                         BC.Mobile.Utilities.Messaging.Snackbar.NotificationType.Alert,
                         CooldownDuration.TenSecondsInSec,
                         NotificationDuration.FifteenSecondsInMs));
+
+                    _logger.Warn("SCAN_FAILED_APPLICATION_REGISTRATION_FAILED");
                 }
             }
 
