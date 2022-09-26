@@ -24,7 +24,6 @@ namespace Plugin.BLE.Android
         private readonly Api21BleScanCallback _api21ScanCallback;
 
         public override IList<IDevice> ConnectedDevices => ConnectedDeviceRegistry.Values.ToList();
-        private static readonly ILogger _logger = LoggerFactory.CreateLogger(nameof(Adapter));
 
         /// <summary>
         /// Used to store all connected devices
