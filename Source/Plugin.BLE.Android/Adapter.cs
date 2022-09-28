@@ -22,8 +22,10 @@ namespace Plugin.BLE.Android
         private readonly BluetoothAdapter _bluetoothAdapter;
         private readonly Api18BleScanCallback _api18ScanCallback;
         private readonly Api21BleScanCallback _api21ScanCallback;
+        private bool _requestDeviceRestart = false;
 
         public override IList<IDevice> ConnectedDevices => ConnectedDeviceRegistry.Values.ToList();
+
 
         /// <summary>
         /// Used to store all connected devices
@@ -125,6 +127,11 @@ namespace Plugin.BLE.Android
                     Trace.Message($"ScanFilters: {string.Join(", ", serviceUuids)}");
                 }
                 _bluetoothAdapter.BluetoothLeScanner.StartScan(scanFilters, ssb.Build(), _api21ScanCallback);
+
+                if (_requestDeviceRestart)
+                {
+                    throw new Abstractions.Exceptions.CharacteristicReadException("SCAN_FAILED_APPLICATION_REGISTRATION_FAILED");
+                }
             }
             else
             {
@@ -238,7 +245,7 @@ namespace Plugin.BLE.Android
                 }
             }
             else
-            {                
+            {
                 return await ConnectToKnownDeviceAsync(uuid, new ConnectParameters(false, true), cancellationToken);
             }
         }
@@ -287,12 +294,22 @@ namespace Plugin.BLE.Android
             {
                 Trace.Message("Adapter: Scan failed with code {0}", errorCode);
                 base.OnScanFailed(errorCode);
+
+                //Same errorcode as shown on LightBlue app ("SCAN_FAILED_APPLICATION_REGISTRATION_FAILED")
+                //Will trigger if BLE scanner fails to register app
+                //Prompt user to restart device
+                if (errorCode == (ScanFailure)2)
+                {
+                    _adapter._requestDeviceRestart = true;
+                }
+
+                //Exception bubbling hierarchy is weird from here
+                // - therefore set as bool and exception thrown in "StartScanningNew" method, caught in BleDiscovery (BC.Mobile.Core).
             }
 
             public override void OnScanResult(ScanCallbackType callbackType, ScanResult result)
             {
                 base.OnScanResult(callbackType, result);
-
                 try
                 {
                     var device = new Device(_adapter, result.Device, null, result.Rssi, result.ScanRecord.GetBytes());

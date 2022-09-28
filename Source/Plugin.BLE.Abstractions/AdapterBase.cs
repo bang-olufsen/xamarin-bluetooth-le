@@ -73,7 +73,6 @@ namespace Plugin.BLE.Abstractions
             }
             catch (TaskCanceledException)
             {
-
                 Trace.Message("Adapter: Scan was cancelled.");
             }
             finally
