@@ -84,6 +84,13 @@ namespace Plugin.BLE.Abstractions
         public async Task<IService> GetServiceAsync(Guid id, CancellationToken cancellationToken = default(CancellationToken))
         {
             var services = await GetServicesAsync(cancellationToken);
+
+            var hasIdenticalServiceIds = services?.Count(x => x?.Id == id) > 1;
+            if (hasIdenticalServiceIds)
+            {
+                Trace.Message("NOTICE: Identical services found, first service will be returned");
+            }
+
             return services.FirstOrDefault(x => x.Id == id);
         }
 
