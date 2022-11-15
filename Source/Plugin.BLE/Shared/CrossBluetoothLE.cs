@@ -7,7 +7,7 @@ namespace Plugin.BLE
     /// <summary>
     /// Cross platform bluetooth LE implemenation.
     /// </summary>
-    public class PortableCrossBluetoothLE : ICrossBluetoothLE
+    public class PortableCrossBluetoothLE
     {
         /// <summary>
         /// Current bluetooth LE implementation.
@@ -18,7 +18,6 @@ namespace Plugin.BLE
             {
                 throw NotImplementedInReferenceAssembly();
             }
-#if NETSTANDARD
         }
 
         internal static Exception NotImplementedInReferenceAssembly()

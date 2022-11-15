@@ -162,6 +162,6 @@ namespace Plugin.BLE.Abstractions.Contracts
         /// <exception cref="ArgumentNullException">When ids is null</exception>
         /// <param name="ids">The list of UUIDs</param>
         /// <returns>The known device. Empty list if no device known.</returns>
-        IReadOnlyList<IDevice> GetKnownDevicesByIds(Guid[] ids);        Task<IDevice> ConnectAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken));
+        IReadOnlyList<IDevice> GetKnownDevicesByIds(Guid[] ids);
     }
 }

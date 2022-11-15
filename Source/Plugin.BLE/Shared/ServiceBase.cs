@@ -23,7 +23,7 @@ namespace Plugin.BLE.Abstractions
             NativeService = nativeService;
         }
 
-        public async Task<IReadOnlyList<ICharacteristic>> GetCharacteristicsAsync()
+        public async Task<IReadOnlyList<ICharacteristic>> GetCharacteristicsAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             if (!_characteristics.Any())
             {

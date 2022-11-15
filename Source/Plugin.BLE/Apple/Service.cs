@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CoreBluetooth;
 using Plugin.BLE.Abstractions;
@@ -24,7 +25,7 @@ namespace Plugin.BLE.iOS
             _bleCentralManagerDelegate = bleCentralManagerDelegate;
         }
 
-        protected override Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync()
+        protected override Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             var exception = new Exception($"Device '{Device.Id}' disconnected while fetching characteristics for service with {Id}.");
 

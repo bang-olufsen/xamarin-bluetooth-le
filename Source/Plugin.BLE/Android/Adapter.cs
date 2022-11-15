@@ -307,7 +307,8 @@ namespace Plugin.BLE.Android
                         return null;
                     }
 
-                    var scanTask = StartScanningForDevicesAsync(deviceFilter: deviceFilter, cancellationToken: linkedToken);
+                    // TODO fix scanfilteroptions
+                    var scanTask = StartScanningForDevicesAsync(new ScanFilterOptions(), deviceFilter: deviceFilter, cancellationToken: linkedToken);
                     var device = await await Task.WhenAny(taskCompletionSource.Task, WaitAsync());
 
                     //Stop scanning when we timeout on waiting for an result

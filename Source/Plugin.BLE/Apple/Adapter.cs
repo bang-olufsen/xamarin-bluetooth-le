@@ -510,7 +510,9 @@ namespace Plugin.BLE.iOS
 
                 await StopScanningForDevicesAsync();
 
+                // TODO DO smth about ScanFilterOptions. (Added it when MAUI)
                 await StartScanningForDevicesAsync(
+                    new ScanFilterOptions(),
                     deviceFilter: deviceFilter,
                     cancellationToken: linkedToken);
                 return await taskCompletionSource.Task;
@@ -532,12 +534,14 @@ namespace Plugin.BLE.iOS
         {
             var peripherals = _centralManager.RetrievePeripheralsWithIdentifiers(nsuuid);
             var peripheral = peripherals.SingleOrDefault();
-            if (peripheral == null)
-            {
-                var connectedPeripherals = _centralManager.RetrieveConnectedPeripherals(new CBUUID[0]);
-                var cbuuid = CBUUID.FromNSUuid(nsuuid);
-                peripheral = connectedPeripherals.SingleOrDefault(p => p.UUID.Equals(cbuuid));
-            }
+
+            // TODO do smth about this below
+            //if (peripheral == null)
+            //{
+            //    var connectedPeripherals = _centralManager.RetrieveConnectedPeripherals(new CBUUID[0]);
+            //    var cbuuid = CBUUID.FromNSUuid(nsuuid);
+            //    peripheral = connectedPeripherals.SingleOrDefault(p => p.Equals(cbuuid));
+            //}
 
             return peripheral;
         }
@@ -552,7 +556,7 @@ namespace Plugin.BLE.iOS
             var completionSource = new TaskCompletionSource<IDevice>();
             EventHandler<CBPeripheralEventArgs> connectedEvent = (sender, args) =>
             {
-                var device = new Device(this, args.Peripheral);
+                var device = new Device(this, args.Peripheral, _bleCentralManagerDelegate);
                 completionSource.TrySetResult(device);
             };
 

@@ -24,8 +24,6 @@ namespace Plugin.BLE.Extensions
                     return BluetoothState.Unknown;
             }
         }
-
-        }
 #else
         public static BluetoothState ToBluetoothState(this CBCentralManagerState state)
         {

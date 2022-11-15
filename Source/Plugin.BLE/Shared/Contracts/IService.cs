@@ -35,7 +35,7 @@ namespace Plugin.BLE.Abstractions.Contracts
         /// Gets the characteristics of the service.
         /// </summary>
         /// <returns>A task that represents the asynchronous read operation. The Result property will contain a list of characteristics.</returns>
-        Task<IReadOnlyList<ICharacteristic>> GetCharacteristicsAsync();
+        Task<IReadOnlyList<ICharacteristic>> GetCharacteristicsAsync(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Gets the first characteristic with the Id <paramref name="id"/>. 

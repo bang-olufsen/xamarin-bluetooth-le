@@ -85,7 +85,7 @@ namespace Plugin.BLE.iOS
                 unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler);
         }
 
-        protected override Task<byte[]> ReadNativeAsync()
+        protected override Task<byte[]> ReadNativeAsync(CancellationToken token)
         {
             var exception = new Exception($"Device '{Service.Device.Id}' disconnected while reading characteristic with {Id}.");
 
@@ -123,7 +123,7 @@ namespace Plugin.BLE.iOS
                     unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler);
         }
 
-        protected override Task<bool> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType)
+        protected override Task<bool> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType, CancellationToken token = default(CancellationToken))
         {
             var exception = new Exception($"Device {Service.Device.Id} disconnected while writing characteristic with {Id}.");
 

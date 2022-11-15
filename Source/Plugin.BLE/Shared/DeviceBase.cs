@@ -68,14 +68,6 @@ namespace Plugin.BLE.Abstractions
                 {
                     return KnownServices.ToArray();
                 }
-                
-                if (services != null)
-                {
-                    lock (_servicesLock)
-                    {
-                        KnownServices.AddRange(services);
-                    }
-                }
             }
 
             using (var source = this.GetCombinedSource(cancellationToken))
@@ -102,6 +94,7 @@ namespace Plugin.BLE.Abstractions
                 Trace.Message("NOTICE: Identical services found, first service will be returned");
             }
 
+            return services.ToList().FirstOrDefault(x => x.Id == id);
         }
 
         public async Task<int> RequestMtuAsync(int requestValue)
@@ -139,21 +132,21 @@ namespace Plugin.BLE.Abstractions
             {
                 if (KnownServices != null)
                 {
-                foreach (var service in KnownServices)
-                {
-                    try
+                    foreach (var service in KnownServices)
                     {
-                        service.Dispose();
+                        try
+                        {
+                            service.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            Trace.Message("Exception while cleanup of service: {0}", ex.Message);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        Trace.Message("Exception while cleanup of service: {0}", ex.Message);
-                    }
-                }
 
-                KnownServices.Clear();
+                    KnownServices.Clear();
+                }
             }
-        }
         }
 
         public override bool Equals(object other)

@@ -42,7 +42,7 @@ namespace Plugin.BLE.Abstractions
         /// Scan match mode defines how agressively we look for adverts
         /// </summary>
         public ScanMatchMode ScanMatchMode { get; set; } = ScanMatchMode.STICKY;
-        
+
 
         protected ConcurrentDictionary<Guid, IDevice> DiscoveredDevicesRegistry { get; } = new ConcurrentDictionary<Guid, IDevice>();
 
@@ -55,16 +55,16 @@ namespace Plugin.BLE.Abstractions
 
         public IReadOnlyList<IDevice> ConnectedDevices => ConnectedDeviceRegistry.Values.ToList();
 
-        public async Task StartScanningForDevicesAsync(ScanFilterOptions scanFilterOptions, 
-            Func<IDevice, bool> deviceFilter = null, 
-            bool allowDuplicatesKey = false, 
+        public async Task StartScanningForDevicesAsync(ScanFilterOptions scanFilterOptions,
+            Func<IDevice, bool> deviceFilter = null,
+            bool allowDuplicatesKey = false,
             CancellationToken cancellationToken = default)
         {
             if (IsScanning)
             {
                 Trace.Message("Adapter: Already scanning! Restarting...");
                 _scanCancellationTokenSource.Cancel();
-                
+
                 //Wait a bit for the previous scan to stop
                 await Task.Delay(1000, cancellationToken);
             }
@@ -116,11 +116,13 @@ namespace Plugin.BLE.Abstractions
             return Task.FromResult(0);
         }
 
-        public async Task ConnectToDeviceAsync(IDevice device, ConnectParameters connectParameters = default, CancellationToken cancellationToken = default)
+        public Task<IDevice> ConnectAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken))
+
         {
             return ConnectNativeAsync(uuid, deviceFilter, cancellationToken);
         }
 
+        public async Task ConnectToDeviceAsync(IDevice device, ConnectParameters connectParameters = default, CancellationToken cancellationToken = default)
         {
             if (device == null)
                 throw new ArgumentNullException(nameof(device));

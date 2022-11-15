@@ -75,7 +75,7 @@ namespace Plugin.BLE.Android
                         _device.IsOperationRequested = false;
                         lock (_adapter.ConnectedDeviceRegistryLock)
                         {
-                            _adapter.ConnectedDeviceRegistry.Remove(gatt.Device.Address);
+                            _adapter.ConnectedDeviceRegistry.TryRemove(gatt.Device.Address, out _);
                         }
 
                         if (status != GattStatus.Success && (int)status != 19)
@@ -101,7 +101,7 @@ namespace Plugin.BLE.Android
 
                     lock (_adapter.ConnectedDeviceRegistryLock)
                     {
-                        _adapter.ConnectedDeviceRegistry.Remove(gatt.Device.Address);
+                        _adapter.ConnectedDeviceRegistry.TryRemove(gatt.Device.Address, out _);
                     }
 
                     _adapter.HandleDisconnectedDevice(false, _device);
