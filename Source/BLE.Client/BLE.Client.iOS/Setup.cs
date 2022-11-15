@@ -1,48 +1,56 @@
 using Acr.UserDialogs;
-using MvvmCross.Core.ViewModels;
-using MvvmCross.Forms.iOS.Presenters;
-using MvvmCross.iOS.Platform;
-using MvvmCross.iOS.Views.Presenters;
-using MvvmCross.Platform;
-using MvvmCross.Platform.Platform;
-using Plugin.Permissions;
-using Plugin.Settings;
-using UIKit;
-using Xamarin.Forms;
+using Microsoft.Extensions.Logging;
+using MvvmCross;
+using MvvmCross.Forms.Platforms.Ios.Core;
+using MvvmCross.IoC;
+using MvvmCross.ViewModels;
+using Serilog;
+using Serilog.Extensions.Logging;
 
 namespace BLE.Client.iOS
 {
-    public class Setup : MvxIosSetup
+    public class Setup : MvxFormsIosSetup
     {
-        public Setup(MvxApplicationDelegate applicationDelegate, UIWindow window)
-            : base(applicationDelegate, window)
+        protected override IMvxIoCProvider InitializeIoC()
         {
+            var result = base.InitializeIoC();
+
+            Mvx.IoCProvider.RegisterSingleton(() => UserDialogs.Instance);
+
+            return result;
         }
 
-        protected override IMvxApplication CreateApp()
+        protected override Xamarin.Forms.Application CreateFormsApplication()
+        {
+            return new BleMvxFormsApp();
+        }
+
+        protected override IMvxApplication CreateApp(IMvxIoCProvider iocProvider)
         {
             return new BleMvxApplication();
         }
 
-        protected override IMvxTrace CreateDebugTrace()
+        protected override ILoggerProvider CreateLogProvider()
         {
-            return new DebugTrace();
+            return new SerilogLoggerProvider();
         }
 
-        protected override IMvxIosViewPresenter CreatePresenter()
+        protected override ILoggerFactory CreateLogFactory()
         {
-            Forms.Init();
-            var xamarinFormsApp = new BleMvxFormsApp();
-            return new MvxFormsIosPagePresenter(Window, xamarinFormsApp);
+            // serilog configuration
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.NSLog()
+                .CreateLogger();
+
+            return new SerilogLoggerFactory();
         }
 
-        protected override void InitializeIoC()
+        /*
+        public override IEnumerable<Assembly> GetPluginAssemblies()
         {
-            base.InitializeIoC();
-
-            Mvx.RegisterSingleton(() => UserDialogs.Instance);
-            Mvx.RegisterSingleton(() => CrossSettings.Current);
-            Mvx.RegisterSingleton(() => CrossPermissions.Current);
+            return new List<Assembly>(base.GetViewAssemblies().Union(new[] { typeof(MvvmCross.Plugins.BLE.Plugin).GetTypeInfo().Assembly }));
         }
+        */
     }
 }

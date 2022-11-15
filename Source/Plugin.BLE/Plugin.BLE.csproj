@@ -1,58 +1,123 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <PropertyGroup>
-    <MinimumVisualStudioVersion>10.0</MinimumVisualStudioVersion>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{951ED11D-D026-449C-90DC-5027BC41FB3B}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Plugin.BLE</RootNamespace>
-    <AssemblyName>Plugin.BLE</AssemblyName>
-    <DefaultLanguage>en-US</DefaultLanguage>
-    <FileAlignment>512</FileAlignment>
-    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <TargetFrameworkProfile>Profile259</TargetFrameworkProfile>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;PORTABLE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <DocumentationFile>
-    </DocumentationFile>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;PORTABLE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Release\Plugin.BLE.XML</DocumentationFile>
-  </PropertyGroup>
-  <ItemGroup>
-    <!-- A reference to the entire .NET Framework is automatically included -->
-    <ProjectReference Include="..\Plugin.BLE.Abstractions\Plugin.BLE.Abstractions.csproj">
-      <Project>{F479F7DB-CFA6-49E5-AA41-4FE6A4DA39B0}</Project>
-      <Name>Plugin.BLE.Abstractions</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="CrossBluetoothLE.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+﻿<Project Sdk="MSBuild.Sdk.Extras/3.0.44">
+	<PropertyGroup>
+		<TargetFrameworks>netstandard2.0;MonoAndroid10.0;Xamarin.iOS10;Xamarin.Mac20;net6.0-android;net6.0-ios;net6.0-maccatalyst</TargetFrameworks>
+		<TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">$(TargetFrameworks);uap10.0.19041;net6.0-windows10.0.19041;</TargetFrameworks>
+		<AssemblyName>Plugin.BLE</AssemblyName>
+		<RootNamespace>Plugin.BLE</RootNamespace>
+		<AssemblyVersion>1.0.0.0</AssemblyVersion>
+		<AssemblyFileVersion>1.0.0.0</AssemblyFileVersion>
+		<Version>2.2.0-pre5</Version>
+		<Product>$(AssemblyName) ($(TargetFramework))</Product>
+		<Authors>Adrian Seceleanu, Sven-Michael Stübe, Janus Weil</Authors>
+		<PackageId>Plugin.BLE</PackageId>
+		<PackOnBuild>true</PackOnBuild>
+		<PackageIconUrl>https://raw.githubusercontent.com/dotnet-bluetooth-le/dotnet-bluetooth-le/master/icon_small.png</PackageIconUrl>
+		<PackageLicenseUrl>https://raw.githubusercontent.com/dotnet-bluetooth-le/dotnet-bluetooth-le/master/LICENSE</PackageLicenseUrl>
+		<Owners>Adrian Seceleanu, Sven-Michael Stübe, Janus Weil</Owners>
+		<PackageProjectUrl>https://github.com/dotnet-bluetooth-le/dotnet-bluetooth-le/</PackageProjectUrl>
+		<Summary>Plugin to access Bluetooth Low Energy functionality on Android, iOS, macOS, and UWP.</Summary>
+		<PackageTags>
+			xamarin, maui, pcl, xam.pcl, uwp, bluetooth, ble, .net maui, xamarin.forms, ios
+		</PackageTags>
+		<Title>Bluetooth Low Energy (BLE) Plugin for .NET MAUI and Xamarin</Title>
+		<Description>
+			Xamarin and MAUI plugin to access Bluetooth Low Energy functionality on Android, iOS, macOS, and UWP.
+			Read the full documentation on the projects page.
+		</Description>
+		<Copyright>Apache-2.0</Copyright>
+		<RepositoryUrl>https://github.com/dotnet-bluetooth-le/dotnet-bluetooth-le/</RepositoryUrl>
+		<PackageReleaseNotes>See: https://github.com/dotnet-bluetooth-le/dotnet-bluetooth-le/ </PackageReleaseNotes>
+
+		<NeutralLanguage>en</NeutralLanguage>
+		<LangVersion>latest</LangVersion>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<DefineConstants>$(DefineConstants);</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-ios'))">10.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-tvos'))">10.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-maccatalyst'))">13.1</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-macos'))">10.14</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-android'))">21.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-windows10'))">10.0.17763.0</SupportedOSPlatformVersion>
+		<TargetPlatformMinVersion Condition="$(TargetFramework.Contains('-windows10'))">10.0.17763.0</TargetPlatformMinVersion>
+	</PropertyGroup>
+
+	  <PropertyGroup Condition=" '$(Configuration)'=='Release' And '$(OS)' == 'Windows_NT' ">
+	    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+	    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+	    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+	  </PropertyGroup>
+	  <ItemGroup>
+	    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+	  </ItemGroup>
+
+	<PropertyGroup Condition=" '$(Configuration)'=='Debug' ">
+		<DebugSymbols>true</DebugSymbols>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)'=='Release' ">
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="**\Shared\**\*.cs" />
+	</ItemGroup>
+
+
+	<ItemGroup Condition=" $(TargetFramework.StartsWith('netstandard')) ">
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.StartsWith('uap10.0')) ">
+		<Compile Include="**\Windows\**\*.cs" />
+		<PackageReference Include="Microsoft.Toolkit.Uwp.Connectivity" Version="6.1.1" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.Contains('-windows')) ">
+		<Compile Include="**\Windows\**\*.cs" />
+		<PackageReference Include="CommunityToolkit.WinUI.Connectivity" Version="7.1.2" />
+	</ItemGroup>
+
+	<PropertyGroup Condition=" $(TargetFramework.StartsWith('uap10.0')) ">
+		<TargetPlatformMinVersion>10.0.16299.0</TargetPlatformMinVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" $(TargetFramework.Contains('-android')) ">
+	</PropertyGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.Contains('-android')) ">
+		<Compile Include="**\Android\**\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.StartsWith('MonoAndroid')) ">
+		<Compile Include="**\Android\**\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.StartsWith('Xamarin.iOS')) ">
+		<Compile Include="**\Apple\**\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.Contains('-ios')) ">
+		<Compile Include="**\Apple\**\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.StartsWith('Xamarin.Mac')) ">
+		<Compile Include="**\Apple\**\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" $(TargetFramework.Contains('-mac')) ">
+		<Compile Include="**\Apple\**\*.cs" />
+	</ItemGroup>
+
+	    <ItemGroup Condition=" $(TargetFramework.StartsWith('Xamarin.Mac')) ">
+		<Reference Include="Xamarin.Mac">
+			<HintPath Condition="Exists('C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\Extensions\Xamarin.VisualStudio')">C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\Extensions\Xamarin.VisualStudio\Xamarin.Mac.dll</HintPath>
+			<HintPath Condition="Exists('C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\Extensions\Xamarin.VisualStudio')">C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\Extensions\Xamarin.VisualStudio\Xamarin.Mac.dll</HintPath>
+			<HintPath Condition="Exists('C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Xamarin.VisualStudio')">C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Xamarin.VisualStudio\Xamarin.Mac.dll</HintPath>
+			<HintPath Condition="Exists('C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\Extensions\Xamarin.VisualStudio')">C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\Extensions\Xamarin.VisualStudio\Xamarin.Mac.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
 </Project>

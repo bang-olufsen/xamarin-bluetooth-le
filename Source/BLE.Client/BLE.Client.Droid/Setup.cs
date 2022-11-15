@@ -1,47 +1,45 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using Acr.UserDialogs;
-using Android.Content;
-using MvvmCross.Droid.Platform;
-using MvvmCross.Core.ViewModels;
-using MvvmCross.Core.Views;
-using MvvmCross.Droid.Views;
-using MvvmCross.Platform;
-using MvvmCross.Platform.Platform;
-using Plugin.Settings;
-using Plugin.Permissions;
-using MvvmCross.Forms.Droid.Presenters;
+using Microsoft.Extensions.Logging;
+using MvvmCross;
+using MvvmCross.Forms.Platforms.Android.Core;
+using MvvmCross.IoC;
+using Serilog;
+using Serilog.Extensions.Logging;
 
 namespace BLE.Client.Droid
 {
-    public class Setup : MvxAndroidSetup
+    public class Setup : MvxFormsAndroidSetup<BleMvxApplication, BleMvxFormsApp>
     {
-        public Setup(Context applicationContext) : base(applicationContext)
+        public override IEnumerable<Assembly> GetViewAssemblies()
         {
+            return new List<Assembly>(base.GetViewAssemblies().Union(new[] { typeof(BleMvxFormsApp).GetTypeInfo().Assembly }));
         }
 
-        protected override IMvxApplication CreateApp()
+        protected override ILoggerProvider CreateLogProvider()
         {
-            return new BleMvxApplication();
+            return new SerilogLoggerProvider();
         }
 
-        protected override IMvxTrace CreateDebugTrace()
+        protected override ILoggerFactory CreateLogFactory()
         {
-            return new DebugTrace();
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.AndroidLog()
+                .CreateLogger();
+
+            return new SerilogLoggerFactory();
         }
 
-        protected override IMvxAndroidViewPresenter CreateViewPresenter()
+        protected override IMvxIoCProvider InitializeIoC()
         {
-            var presenter = new MvxFormsDroidPagePresenter();
-            Mvx.RegisterSingleton<IMvxViewPresenter>(presenter);
-            return presenter;
-        }
+            var result = base.InitializeIoC();
 
-        protected override void InitializeIoC()
-        {
-            base.InitializeIoC();
+            Mvx.IoCProvider.RegisterSingleton(() => UserDialogs.Instance);
 
-            Mvx.RegisterSingleton(() => UserDialogs.Instance);
-            Mvx.RegisterSingleton(() => CrossSettings.Current);
-            Mvx.RegisterSingleton(() => CrossPermissions.Current);
+            return result;
         }
     }
 }

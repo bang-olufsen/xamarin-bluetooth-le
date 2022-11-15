@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using MvvmCross.Core.ViewModels;
-using MvvmCross.Platform;
+using Microsoft.Extensions.Logging;
+using MvvmCross;
+using MvvmCross.Logging;
+using MvvmCross.ViewModels;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 
 namespace BLE.Client.ViewModels
 {
-    public class BaseViewModel : MvxViewModel
+    public class BaseViewModel : MvxViewModel<MvxBundle>
     {
         protected readonly IAdapter Adapter;
         protected const string DeviceIdKey = "DeviceIdNavigationKey";
@@ -16,25 +18,26 @@ namespace BLE.Client.ViewModels
         protected const string CharacteristicIdKey = "CharacteristicIdNavigationKey";
         protected const string DescriptorIdKey = "DescriptorIdNavigationKey";
 
+        private readonly ILogger<BaseViewModel> _log;
+
         public BaseViewModel(IAdapter adapter)
         {
             Adapter = adapter;
+            Mvx.IoCProvider.TryResolve(out _log);
         }
 
-        public virtual void Resume()
+        public override void ViewAppeared()
         {
-            Mvx.Trace("Resume {0}", GetType().Name);
+            _log?.LogTrace("ViewAppeared {0}", GetType().Name);
         }
 
-        public virtual void Suspend()
+        public override void ViewDisappeared()
         {
-            Mvx.Trace("Suspend {0}", GetType().Name);
+            _log?.LogTrace("ViewDisappeared {0}", GetType().Name);
         }
 
-        protected override void InitFromBundle(IMvxBundle parameters)
+        public override void Prepare(MvxBundle parameters)
         {
-            base.InitFromBundle(parameters);
-
             Bundle = parameters;
         }
 

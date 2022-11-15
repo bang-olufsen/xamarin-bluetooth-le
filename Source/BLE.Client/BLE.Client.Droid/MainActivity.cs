@@ -1,19 +1,15 @@
-using Acr.UserDialogs;
-using Android.App;
+﻿using Android.App;
 using Android.Content.PM;
 using Android.OS;
-using MvvmCross.Core.ViewModels;
-using MvvmCross.Core.Views;
-using MvvmCross.Forms.Droid.Presenters;
-using MvvmCross.Platform;
-using Xamarin.Forms;
-using Xamarin.Forms.Platform.Android;
+using MvvmCross.Forms.Platforms.Android.Views;
+using Xamarin.Essentials;
 
 namespace BLE.Client.Droid
 {
-    [Activity(ScreenOrientation = ScreenOrientation.Portrait)]
-    public class MainActivity
-        : FormsAppCompatActivity
+    [Activity(ScreenOrientation = ScreenOrientation.Portrait
+        ,ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation,
+        LaunchMode = LaunchMode.SingleTask)]
+    public class MainActivity : MvxFormsAppCompatActivity
     {
         protected override void OnCreate(Bundle bundle)
         {
@@ -22,15 +18,14 @@ namespace BLE.Client.Droid
 
             base.OnCreate(bundle);
 
-            UserDialogs.Init(this);
-            Forms.Init(this, bundle);
-            var formsApp = new BleMvxFormsApp();
-            LoadApplication(formsApp);
+            Platform.Init(this, bundle);
+        }
 
-            var presenter = (MvxFormsDroidPagePresenter) Mvx.Resolve<IMvxViewPresenter>();
-            presenter.FormsApplication = formsApp;
+        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, Android.Content.PM.Permission[] grantResults)
+        {
+            Xamarin.Essentials.Platform.OnRequestPermissionsResult(requestCode, permissions, grantResults);
 
-            Mvx.Resolve<IMvxAppStart>().Start();
+            base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
         }
     }
 }

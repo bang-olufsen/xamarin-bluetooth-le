@@ -1,0 +1,69 @@
+name: ci/github-actions
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - uses: nuget/setup-nuget@v1
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.0.x
+    - name: Install .NET MAUI
+      shell: pwsh
+      run: |
+        & dotnet nuget locals all --clear
+        & dotnet workload install maui --source https://aka.ms/dotnet6/nuget/index.json --source https://api.nuget.org/v3/index.json
+        & dotnet workload install android ios maccatalyst tvos macos maui wasm-tools maui-maccatalyst --source https://aka.ms/dotnet6/nuget/index.json --source https://api.nuget.org/v3/index.json
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+    - name: Clean
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: .build/build.cake
+        target: Clean
+    - name: Restore
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: .build/build.cake
+        target: Restore
+    - name: Build Libs
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: .build/build.cake
+        target: BuildLibs
+    - name: Build Clients
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: .build/build.cake
+        target: BuildClients
+    - name: Builds Tests
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: .build/build.cake
+        target: BuildTests
+    - name: Run Tests
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: .build/build.cake
+        target: RunTests
+    - name: Build Plugin.BLE NuGet
+      run: msbuild .\Source\Plugin.BLE\Plugin.BLE.csproj /p:Configuration=Release /t:restore,build,pack /p:PackageOutputPath=./nuget /p:Version=$(git describe) /p:ContinuousIntegrationBuild=true /p:DeterministicSourcePaths=false
+    - name: Build MVVMCross.Plugins.BLE NuGet
+      run: msbuild .\Source\MvvmCross.Plugins.BLE\MvvmCross.Plugins.BLE.csproj /p:Configuration=Release /t:restore,build,pack /p:PackageOutputPath=./nuget /p:Version=$(git describe) /p:ContinuousIntegrationBuild=true /p:DeterministicSourcePaths=false
+    - name: Upload packages
+      uses: actions/upload-artifact@v2
+      with:
+        name: nupkg
+        path: ./Source/*/nuget/*Plugin.BLE*.nupkg
