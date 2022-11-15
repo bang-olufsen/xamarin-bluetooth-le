@@ -6,6 +6,7 @@ using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Extensions;
+using System.Threading;
 
 namespace Plugin.BLE.UWP
 {
@@ -21,7 +22,7 @@ namespace Plugin.BLE.UWP
         {
         }
 
-        protected override async Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync()
+        protected override async Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             var result = await NativeService.GetCharacteristicsAsync(BleImplementation.CacheModeGetCharacteristics);
             result.ThrowIfError();

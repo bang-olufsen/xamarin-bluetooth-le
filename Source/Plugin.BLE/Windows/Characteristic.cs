@@ -47,7 +47,7 @@ namespace Plugin.BLE.UWP
                 .ToList();
         }
 
-        protected override async Task<byte[]> ReadNativeAsync()
+        protected override async Task<byte[]> ReadNativeAsync(CancellationToken token)
         {
             var readResult = await NativeCharacteristic.ReadValueAsync(BleImplementation.CacheModeCharacteristicRead);
             return _value = readResult.GetValueOrThrowIfError();
@@ -70,7 +70,7 @@ namespace Plugin.BLE.UWP
             result.ThrowIfError();
         }
 
-        protected override async Task<bool> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType)
+        protected override async Task<bool> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType, CancellationToken token = default)
         {
             var result = await NativeCharacteristic.WriteValueWithResultAsync(
                 CryptographicBuffer.CreateFromByteArray(data),

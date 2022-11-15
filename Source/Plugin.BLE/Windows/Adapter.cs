@@ -201,5 +201,10 @@ namespace Plugin.BLE.UWP
             // TODO: implement this
             return new List<IDevice>();
         }
+
+        protected override Task<IDevice> ConnectNativeAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

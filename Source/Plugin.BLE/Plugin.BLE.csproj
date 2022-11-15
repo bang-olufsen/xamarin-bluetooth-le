@@ -1,7 +1,7 @@
 ﻿<Project Sdk="MSBuild.Sdk.Extras/3.0.44">
 	<PropertyGroup>
 		<TargetFrameworks>netstandard2.0;net6.0-android;net6.0-ios;net6.0-maccatalyst</TargetFrameworks>
-		<TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">$(TargetFrameworks);uap10.0.19041;net6.0-windows10.0.19041;</TargetFrameworks>
+		<TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">$(TargetFrameworks);net6.0-windows10.0.19041;</TargetFrameworks>
 		<AssemblyName>Plugin.BLE</AssemblyName>
 		<RootNamespace>Plugin.BLE</RootNamespace>
 		<AssemblyVersion>1.0.0.0</AssemblyVersion>
@@ -68,19 +68,10 @@
 	<ItemGroup Condition=" $(TargetFramework.StartsWith('netstandard')) ">
 	</ItemGroup>
 
-	<ItemGroup Condition=" $(TargetFramework.StartsWith('uap10.0')) ">
-		<Compile Include="**\Windows\**\*.cs" />
-		<PackageReference Include="Microsoft.Toolkit.Uwp.Connectivity" Version="6.1.1" />
-	</ItemGroup>
-
 	<ItemGroup Condition=" $(TargetFramework.Contains('-windows')) ">
 		<Compile Include="**\Windows\**\*.cs" />
 		<PackageReference Include="CommunityToolkit.WinUI.Connectivity" Version="7.1.2" />
 	</ItemGroup>
-
-	<PropertyGroup Condition=" $(TargetFramework.StartsWith('uap10.0')) ">
-		<TargetPlatformMinVersion>10.0.16299.0</TargetPlatformMinVersion>
-	</PropertyGroup>
 
 	<PropertyGroup Condition=" $(TargetFramework.Contains('-android')) ">
 	</PropertyGroup>
