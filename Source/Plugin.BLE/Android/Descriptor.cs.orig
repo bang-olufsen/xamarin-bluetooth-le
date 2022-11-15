@@ -25,14 +25,23 @@ namespace Plugin.BLE.Android
 
         protected override async Task WriteNativeAsync(byte[] data)
         {
+<<<<<<< HEAD:Source/Plugin.BLE.Android/Descriptor.cs
             await CrazyQueue.Run(async () =>
             {
                 await TaskBuilder.FromEvent<bool, EventHandler<DescriptorCallbackEventArgs>, EventHandler>(
                    execute: () => InternalWrite(data),
                    getCompleteHandler: (complete, reject) => ((sender, args) =>
                    {
-                       if (args.Descriptor.Uuid != NativeDescriptor.Uuid)
+                       if (args.Descriptor.Uuid != _nativeDescriptor.Uuid)
                            return;
+=======
+            return TaskBuilder.FromEvent<bool, EventHandler<DescriptorCallbackEventArgs>, EventHandler>(
+               execute: () => InternalWrite(data),
+               getCompleteHandler: (complete, reject) => ((sender, args) =>
+               {
+                   if (args.Descriptor.Uuid != NativeDescriptor.Uuid)
+                       return;
+>>>>>>> bdb04d57ab74994706e2dcde4f7fd880ec627554:Source/Plugin.BLE/Android/Descriptor.cs
 
                        if (args.Exception != null)
                            reject(args.Exception);
@@ -61,6 +70,7 @@ namespace Plugin.BLE.Android
 
         protected override async Task<byte[]> ReadNativeAsync()
         {
+<<<<<<< HEAD:Source/Plugin.BLE.Android/Descriptor.cs
             var result = new byte[0];
 
             await CrazyQueue.Run(async () =>
@@ -70,7 +80,7 @@ namespace Plugin.BLE.Android
                     execute: ReadInternal,
                     getCompleteHandler: (complete, reject) => ((sender, args) =>
                       {
-                          if (args.Descriptor.Uuid == NativeDescriptor.Uuid)
+                          if (args.Descriptor.Uuid == _nativeDescriptor.Uuid)
                           {
                               complete(args.Descriptor.GetValue());
                           }
@@ -86,6 +96,25 @@ namespace Plugin.BLE.Android
             });
 
             return result;
+=======
+            return await TaskBuilder.FromEvent<byte[], EventHandler<DescriptorCallbackEventArgs>, EventHandler>(
+               execute: ReadInternal,
+               getCompleteHandler: (complete, reject) => ((sender, args) =>
+                  {
+                      if (args.Descriptor.Uuid == NativeDescriptor.Uuid)
+                      {
+                          complete(args.Descriptor.GetValue());
+                      }
+                  }),
+               subscribeComplete: handler => _gattCallback.DescriptorValueRead += handler,
+               unsubscribeComplete: handler => _gattCallback.DescriptorValueRead -= handler,
+               getRejectHandler: reject => ((sender, args) =>
+               {
+                   reject(new Exception($"Device '{Characteristic.Service.Device.Id}' disconnected while reading descriptor with {Id}."));
+               }),
+               subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
+               unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler);
+>>>>>>> bdb04d57ab74994706e2dcde4f7fd880ec627554:Source/Plugin.BLE/Android/Descriptor.cs
         }
 
         private void ReadInternal()

@@ -31,8 +31,11 @@ namespace Plugin.BLE.Android
         /// </summary>
         private readonly GattCallback _gattCallback;
 
+<<<<<<< HEAD:Source/Plugin.BLE.Android/Device.cs
         private static volatile Handler handler;
 
+        public Device(Adapter adapter, BluetoothDevice nativeDevice, BluetoothGatt gatt, int rssi, byte[] advertisementData = null) : base(adapter)
+=======
         /// <summary>
         /// the registration must be disposed to avoid disconnecting after a connection
         /// </summary>
@@ -44,6 +47,7 @@ namespace Plugin.BLE.Android
         public ConnectParameters ConnectParameters { get; private set; }
 
         public Device(Adapter adapter, BluetoothDevice nativeDevice, BluetoothGatt gatt, int rssi, byte[] advertisementData = null) : base(adapter, nativeDevice)
+>>>>>>> bdb04d57ab74994706e2dcde4f7fd880ec627554:Source/Plugin.BLE/Android/Device.cs
         {
             Update(nativeDevice, gatt);
             Rssi = rssi;
@@ -138,15 +142,19 @@ namespace Plugin.BLE.Android
             }
             else
             {
-                var connectGatt = NativeDevice.ConnectGatt(Application.Context, connectParameters.AutoConnect, _gattCallback);
-                _connectCancellationTokenRegistration.Dispose();
-                _connectCancellationTokenRegistration = cancellationToken.Register(() => DisconnectAndClose(connectGatt));
+<<<<<<< HEAD:Source/Plugin.BLE.Android/Device.cs
+                /*_gatt = */
                 if (handler?.Looper != Looper.MainLooper)
                 {
                     handler = new Handler(Looper.MainLooper);
                 }
 
                 handler.Post(() => BluetoothDevice.ConnectGatt(Application.Context, connectParameters.AutoConnect, _gattCallback));
+=======
+                var connectGatt = NativeDevice.ConnectGatt(Application.Context, connectParameters.AutoConnect, _gattCallback);
+                _connectCancellationTokenRegistration.Dispose();
+                _connectCancellationTokenRegistration = cancellationToken.Register(() => DisconnectAndClose(connectGatt));
+>>>>>>> bdb04d57ab74994706e2dcde4f7fd880ec627554:Source/Plugin.BLE/Android/Device.cs
             }
         }
 
@@ -174,17 +182,20 @@ namespace Plugin.BLE.Android
             }
             else
             {
+<<<<<<< HEAD:Source/Plugin.BLE.Android/Device.cs
+
+                if (handler?.Looper != Looper.MainLooper)
+                {
+                    handler = new Handler(Looper.MainLooper);
+                }
+
+                handler.Post(() => BluetoothDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback, BluetoothTransports.Le));
+=======
                 var connectGatt = NativeDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback, BluetoothTransports.Le);
                 _connectCancellationTokenRegistration.Dispose();
                 _connectCancellationTokenRegistration = cancellationToken.Register(() => DisconnectAndClose(connectGatt));
+>>>>>>> bdb04d57ab74994706e2dcde4f7fd880ec627554:Source/Plugin.BLE/Android/Device.cs
             }
-
-            if (handler?.Looper != Looper.MainLooper)
-            {
-                handler = new Handler(Looper.MainLooper);
-            }
-
-            handler.Post(() => BluetoothDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback, BluetoothTransports.Le));
         }
 
         private void DisconnectAndClose(BluetoothGatt gatt)
