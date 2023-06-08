@@ -85,11 +85,11 @@ namespace Plugin.BLE.iOS
                 unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler);
         }
 
-        protected override Task<byte[]> ReadNativeAsync(CancellationToken token)
+        protected override Task<(byte[] data, int resultCode)> ReadNativeAsync()
         {
             var exception = new Exception($"Device '{Service.Device.Id}' disconnected while reading characteristic with {Id}.");
 
-            return TaskBuilder.FromEvent<byte[], EventHandler<CBCharacteristicEventArgs>, EventHandler<CBPeripheralErrorEventArgs>>(
+            return TaskBuilder.FromEvent<(byte[] data, int resultCode), EventHandler<CBCharacteristicEventArgs>, EventHandler<CBPeripheralErrorEventArgs>>(
                     execute: () =>
                     {
                         if (_parentDevice.State != CBPeripheralState.Connected)
@@ -101,15 +101,18 @@ namespace Plugin.BLE.iOS
                     {
                         if (args.Characteristic.UUID != NativeCharacteristic.UUID)
                             return;
-
+#if false
+// don't throw an error on expection, as we want to properly return errors
                         if (args.Error != null)
                         {
                             reject(new CharacteristicReadException($"Read async error: {args.Error.Description}"));
                         }
                         else
+#endif
                         {
                             Trace.Message($"Read characterteristic value: {Value?.ToHexString()}");
-                            complete(Value);
+                            int resultCode = (args.Error == null) ? 0 : NSErrorToGattStatus(args.Error);
+                            complete((Value, resultCode));
                         }
                     },
                     subscribeComplete: handler => _parentDevice.UpdatedCharacterteristicValue += handler,
@@ -123,14 +126,14 @@ namespace Plugin.BLE.iOS
                     unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler);
         }
 
-        protected override Task<bool> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType, CancellationToken token = default(CancellationToken))
+        protected override Task<int> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType)
         {
             var exception = new Exception($"Device {Service.Device.Id} disconnected while writing characteristic with {Id}.");
 
-            Task<bool> task;
+            Task<int> task;
             if (writeType.ToNative() == CBCharacteristicWriteType.WithResponse)
             {
-                task = TaskBuilder.FromEvent<bool, EventHandler<CBCharacteristicEventArgs>, EventHandler<CBPeripheralErrorEventArgs>>(
+                task = TaskBuilder.FromEvent<int, EventHandler<CBCharacteristicEventArgs>, EventHandler<CBPeripheralErrorEventArgs>>(
                     execute: () => 
                     {
                         if (_parentDevice.State != CBPeripheralState.Connected)
@@ -141,7 +144,7 @@ namespace Plugin.BLE.iOS
                         if (args.Characteristic.UUID != NativeCharacteristic.UUID)
                             return;
 
-                        complete(args.Error == null);
+                        complete((args.Error == null) ? 0 : NSErrorToGattStatus(args.Error));
                     },
                     subscribeComplete: handler => _parentDevice.WroteCharacteristicValue += handler,
                     unsubscribeComplete: handler => _parentDevice.WroteCharacteristicValue -= handler,
@@ -157,9 +160,16 @@ namespace Plugin.BLE.iOS
             // CBCharacteristicWriteType is an Enum; so else path is always WithoutResponse.
             else
             {
-                if (_parentDevice.CanSendWriteWithoutResponse)
+#if NET6_0_OR_GREATER
+                if (OperatingSystem.IsIOSVersionAtLeast(11) || OperatingSystem.IsTvOSVersionAtLeast(11) || OperatingSystem.IsMacCatalystVersionAtLeast(11)
+#elif __IOS__
+                if (UIKit.UIDevice.CurrentDevice.CheckSystemVersion(11, 0)
+#else
+                if (true
+#endif
+                    && _parentDevice.CanSendWriteWithoutResponse)
                 {
-                    task = TaskBuilder.FromEvent<bool, EventHandler, EventHandler<CBPeripheralErrorEventArgs>>(
+                    task = TaskBuilder.FromEvent<int, EventHandler, EventHandler<CBPeripheralErrorEventArgs>>(
                     execute: () =>
                     {
                         if (_parentDevice.State != CBPeripheralState.Connected)
@@ -167,7 +177,7 @@ namespace Plugin.BLE.iOS
                     },
                     getCompleteHandler: (complete, reject) => (sender, args) =>
                     {
-                        complete(true);
+                        complete(0);
                     },
                     subscribeComplete: handler => _parentDevice.IsReadyToSendWriteWithoutResponse += handler,
                     unsubscribeComplete: handler => _parentDevice.IsReadyToSendWriteWithoutResponse -= handler,
@@ -181,7 +191,7 @@ namespace Plugin.BLE.iOS
 
                 }
                 else {
-                    task = Task.FromResult(true);
+                    task = Task.FromResult(0);
                 }
             }
 
@@ -199,7 +209,7 @@ namespace Plugin.BLE.iOS
             _parentDevice.UpdatedCharacterteristicValue += UpdatedNotify;
 
             //https://developer.apple.com/reference/corebluetooth/cbperipheral/1518949-setnotifyvalue
-            return TaskBuilder.FromEvent<bool, EventHandler<CBCharacteristicEventArgs>, EventHandler<CBPeripheralErrorEventArgs>>(
+            return TaskBuilder.FromEvent<int, EventHandler<CBCharacteristicEventArgs>, EventHandler<CBPeripheralErrorEventArgs>>(
                   execute: () =>
                   {
                       if (_parentDevice.State != CBPeripheralState.Connected)
@@ -219,7 +229,7 @@ namespace Plugin.BLE.iOS
                       else
                       {
                           Trace.Message($"StartUpdates IsNotifying: {args.Characteristic.IsNotifying}");
-                          complete(args.Characteristic.IsNotifying);
+                          complete(args.Characteristic.IsNotifying ? 0 : NSErrorToGattStatus(args.Error));
                       }
                   },
                   subscribeComplete: handler => _parentDevice.UpdatedNotificationState += handler,
@@ -273,6 +283,18 @@ namespace Plugin.BLE.iOS
                 subscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral += handler,
                 unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler,
                 token: cancellationToken);
+        }
+
+        protected int NSErrorToGattStatus(NSError error)
+        {
+            switch (error.Domain)
+            {
+                case "CBATTErrorDomain":
+                    return (int)error.Code;
+                case "CBErrorDomain":
+                default:
+                    return 0x101;
+            }
         }
 
         private void UpdatedNotify(object sender, CBCharacteristicEventArgs e)

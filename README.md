@@ -1,7 +1,8 @@
 # <img src="icon_small.png" width="71" height="71"/> Bluetooth LE plugin for Xamarin & MAUI
-[Bitrise build status:](https://app.bitrise.io/app/3fe54d0a5f43c2bf) ![Build Status](https://app.bitrise.io/app/3fe54d0a5f43c2bf/status.svg?token=i9LUY4rIecZWd_3j7hwXgw)
 
-Xamarin, MAUI and MvvMCross plugin for accessing the bluetooth functionality. The plugin is loosely based on the BLE implementation of [Monkey Robotics](https://github.com/xamarin/Monkey.Robotics).
+Build status: [![Build status](https://github.com/dotnet-bluetooth-le/dotnet-bluetooth-le/actions/workflows/dotnet.yml/badge.svg)](https://github.com/dotnet-bluetooth-le/dotnet-bluetooth-le/actions/workflows/dotnet.yml?branch=master)
+
+[Xamarin](https://github.com/xamarin), [MAUI](https://github.com/dotnet/maui) and [MvvMCross](https://github.com/MvvmCross) plugin for accessing the bluetooth functionality. The plugin is loosely based on the BLE implementation of [Monkey Robotics](https://github.com/xamarin/Monkey.Robotics).
 
 **Important Note:** With the term *"vanilla"* we mean the non-MvvmCross version, i.e. the pure Xamarin or MAUI plugin. You **can** use it without MvvmCross, if you download the vanilla package.
 
@@ -14,14 +15,22 @@ This project was forked in order to support some functionality required by the B
 
 ## Support & Limitations
 
-| Platform  | Version | Limitations |
-| ------------- | ----------- | ----------- |
-| Xamarin.Android | 4.3 |  |
-| Xamarin.iOS     | 7.0 |  |
-| Xamarin.Mac     | 10.9 (Mavericks) |  >= v2.1.0 |
-| UWP             | 1709 - 10.0.16299 (Fall Creators Update) | TBA |
+[Release Notes](doc/changelog.md)
 
-[Changelog](doc/changelog.md)
+| Platform        | Version           | Limitations |
+| --------------- | ----------------- | ----------- |
+| Xamarin.Android | 4.3               |             |
+| Xamarin.iOS     | 7.0               |             |
+| Xamarin.Mac     | 10.9 (Mavericks)  | >= 2.1.0    |
+| Xamarin.UWP     | 1709 - 10.0.16299 | >= 2.2.0    |
+| MAUI (all 4 OS) |                   | >= 3.0.0    |
+
+## Nuget Packages
+
+| package              | stable    | beta      | downloads |
+| ---------------------|:---------:|:---------:|:---------:|
+| Plugin.BLE           | [![NuGet](https://img.shields.io/nuget/v/Plugin.BLE.svg?style=flat)](https://www.nuget.org/packages/Plugin.BLE) | [![NuGet Beta](https://img.shields.io/nuget/vpre/Plugin.BLE.svg?style=flat)](https://www.nuget.org/packages/Plugin.BLE) | [![Downloads](https://img.shields.io/nuget/dt/Plugin.BLE.svg)](https://www.nuget.org/packages/Plugin.BLE)
+| MvvmCross.Plugin.BLE | [![NuGet MvvMCross](https://img.shields.io/nuget/v/MvvmCross.Plugin.BLE.svg?style=flat)](https://www.nuget.org/packages/MvvmCross.Plugin.BLE) | [![NuGet MvvMCross Beta](https://img.shields.io/nuget/vpre/MvvmCross.Plugin.BLE.svg?style=flat)](https://www.nuget.org/packages/MvvmCross.Plugin.BLE) | [![Downloads](https://img.shields.io/nuget/dt/MvvmCross.Plugin.BLE.svg)](https://www.nuget.org/packages/MvvmCross.Plugin.BLE)
 
 ## Installation
 
@@ -33,7 +42,6 @@ Install-Package Plugin.BLE
 // or pre-release
 Install-Package Plugin.BLE -Pre
 ```
-[![NuGet](https://img.shields.io/nuget/v/Plugin.BLE.svg?label=NuGet&style=flat-square)](https://www.nuget.org/packages/Plugin.BLE) [![NuGet Beta](https://img.shields.io/nuget/vpre/Plugin.BLE.svg?label=NuGet%20Beta&style=flat-square)](https://www.nuget.org/packages/Plugin.BLE)
 
 **MvvmCross**
 
@@ -42,8 +50,6 @@ Install-Package MvvmCross.Plugin.BLE
 // or
 Install-Package MvvmCross.Plugin.BLE -Pre
 ```
-
-[![NuGet MvvMCross](https://img.shields.io/nuget/v/MvvmCross.Plugin.BLE.svg?label=NuGet%20MvvMCross&style=flat-square)](https://www.nuget.org/packages/MvvmCross.Plugin.BLE) [![NuGet MvvMCross Beta](https://img.shields.io/nuget/vpre/MvvmCross.Plugin.BLE.svg?label=NuGet%20MvvMCross%20Beta&style=flat-square)](https://www.nuget.org/packages/MvvmCross.Plugin.BLE)
 
 **Android**
 
@@ -181,7 +187,7 @@ await adapter.StartScanningForDevicesAsync();
 ```csharp
 var scanFilterOptions = new ScanFilterOptions();
 scanFilterOptions.ServiceUuids = new [] {guid1, guid2, etc}; // cross platform filter
-scanFilterOptions.ManufacturerIds = new [] {1,2,3,etc}; // android only filter
+scanFilterOptions.ManufacturerDataFilters = new [] { new ManufacturerDataFilter(1), new ManufacturerDataFilter(2) }; // android only filter
 scanFilterOptions.DeviceAddresses = new [] {"80:6F:B0:43:8D:3B","80:6F:B0:25:C3:15",etc}; // android only filter
 await adapter.StartScanningForDevicesAsync(scanFilterOptions);
 ```
@@ -356,10 +362,11 @@ The BLE API implementation (especially on **Android**) has the following limitat
 
 ## Useful Links
 
+- [Bluetooth Core Specification v4.2 (2014)](https://www.bluetooth.com/specifications/specs/core-specification-4-2/)
+- [Bluetooth Core Specification v5.4 (2023)](https://www.bluetooth.com/specifications/specs/core-specification-5-4/)
 - [Android Bluetooth LE guideline](https://developer.android.com/guide/topics/connectivity/bluetooth-le.html)
 - [iOS CoreBluetooth Best Practices](https://developer.apple.com/library/ios/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/BestPracticesForInteractingWithARemotePeripheralDevice/BestPracticesForInteractingWithARemotePeripheralDevice.html)
 - [iOS CoreBluetooth Background Modes](https://developer.apple.com/library/archive/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/CoreBluetoothBackgroundProcessingForIOSApps/PerformingTasksWhileYourAppIsInTheBackground.html#//apple_ref/doc/uid/TP40013257-CH7-SW7)
-- [MvvmCross](https://github.com/MvvmCross)
 - [Monkey Robotics](https://github.com/xamarin/Monkey.Robotics)
 
 ## How to contribute

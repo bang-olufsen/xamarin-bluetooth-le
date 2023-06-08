@@ -95,6 +95,10 @@ namespace Plugin.BLE.Android
                         _device.Dispose();
                         break;
                     }
+                    else
+                    { 
+                        //connection must have been lost, because the callback was not triggered by calling disconnect
+                        Trace.Message($"Disconnected '{_device.Name}' by lost connection");
 
                     //connection must have been lost, because the callback was not triggered by calling disconnect
                     Trace.Message($"Disconnected '{_device.Name}' by lost connection");
@@ -107,6 +111,7 @@ namespace Plugin.BLE.Android
                     _adapter.HandleDisconnectedDevice(false, _device);
                     OnDisconnected?.Invoke(this, EventArgs.Empty);
 
+                    }
                     // inform pending tasks
                     ConnectionInterrupted?.Invoke(this, EventArgs.Empty);
                     break;
@@ -195,7 +200,7 @@ namespace Plugin.BLE.Android
 
             Trace.Message("OnCharacteristicRead: value {0}; status {1}", characteristic.GetValue().ToHexString(), status);
 
-            CharacteristicValueRead?.Invoke(this, new CharacteristicReadCallbackEventArgs(characteristic));
+            CharacteristicValueRead?.Invoke(this, new CharacteristicReadCallbackEventArgs(characteristic, status));
         }
 
         public override void OnCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic)
@@ -204,7 +209,7 @@ namespace Plugin.BLE.Android
 
             Trace.Message("OnCharacteristicChanged: value {0}", characteristic.GetValue().ToHexString());
 
-            CharacteristicValueUpdated?.Invoke(this, new CharacteristicReadCallbackEventArgs(characteristic));
+            CharacteristicValueUpdated?.Invoke(this, new CharacteristicReadCallbackEventArgs(characteristic, GattStatus.Success));
         }
 
         public override void OnCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, GattStatus status)
@@ -213,7 +218,7 @@ namespace Plugin.BLE.Android
 
             //Trace.Message("OnCharacteristicWrite: value {0} status {1}", characteristic.GetValue().ToHexString(), status);
 
-            CharacteristicValueWritten?.Invoke(this, new CharacteristicWriteCallbackEventArgs(characteristic, GetExceptionFromGattStatus(status)));
+            CharacteristicValueWritten?.Invoke(this, new CharacteristicWriteCallbackEventArgs(characteristic, status, GetExceptionFromGattStatus(status)));
         }
 
         public override void OnReliableWriteCompleted(BluetoothGatt gatt, GattStatus status)
@@ -276,6 +281,11 @@ namespace Plugin.BLE.Android
                     break;
                 case GattStatus.Success:
                     break;
+                // default path to handle errors that are non standard BLE ones, but device priprietary ones.
+                default:
+                    exception = new Exception($"GattStatus: {(int)status}");
+                    break;
+
             }
 
             return exception;

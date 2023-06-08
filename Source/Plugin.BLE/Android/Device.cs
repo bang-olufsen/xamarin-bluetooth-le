@@ -43,11 +43,13 @@ namespace Plugin.BLE.Android
         /// </summary>
         public ConnectParameters ConnectParameters { get; private set; }
 
-        public Device(Adapter adapter, BluetoothDevice nativeDevice, BluetoothGatt gatt, int rssi, byte[] advertisementData = null) : base(adapter, nativeDevice)
+        public Device(Adapter adapter, BluetoothDevice nativeDevice, BluetoothGatt gatt, int rssi = 0, byte[] advertisementData = null, bool isConnectable = true) 
+            : base(adapter, nativeDevice)
         {
             Update(nativeDevice, gatt);
             Rssi = rssi;
             AdvertisementRecords = ParseScanRecord(advertisementData);
+            IsConnectable = isConnectable;
             _gattCallback = new GattCallback(adapter, this);
         }
 
@@ -154,14 +156,21 @@ namespace Plugin.BLE.Android
         {
             //This parameter is present from API 18 but only public from API 23
             //So reflection is used before API 23
-            if (Build.VERSION.SdkInt < BuildVersionCodes.Lollipop)
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(23))
+#else
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+#endif
             {
-                //no transport mode before lollipop, it will probably not work... gattCallBackError 133 again alas
-                var connectGatt = NativeDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback);
+                var connectGatt = NativeDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback, BluetoothTransports.Le);
                 _connectCancellationTokenRegistration.Dispose();
                 _connectCancellationTokenRegistration = cancellationToken.Register(() => DisconnectAndClose(connectGatt));
             }
-            else if (Build.VERSION.SdkInt < BuildVersionCodes.M)
+#if NET6_0_OR_GREATER
+            else if (OperatingSystem.IsAndroidVersionAtLeast(21))
+#else
+            else if (Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop)
+#endif
             {
                 var m = NativeDevice.Class.GetDeclaredMethod("connectGatt", new Java.Lang.Class[] {
                                 Java.Lang.Class.FromType(typeof(Context)),
@@ -174,7 +183,8 @@ namespace Plugin.BLE.Android
             }
             else
             {
-                var connectGatt = NativeDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback, BluetoothTransports.Le);
+                //no transport mode before lollipop, it will probably not work... gattCallBackError 133 again alas
+                var connectGatt = NativeDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback);
                 _connectCancellationTokenRegistration.Dispose();
                 _connectCancellationTokenRegistration = cancellationToken.Register(() => DisconnectAndClose(connectGatt));
             }
@@ -436,5 +446,18 @@ namespace Plugin.BLE.Android
                 throw new Exception($"Update Connection Interval fails with error. {ex.Message}");
             }
         }
+
+        public override bool IsConnectable { get; protected set; }
+
+
+        public override bool SupportsIsConnectable {
+            get =>
+#if NET6_0_OR_GREATER
+                OperatingSystem.IsAndroidVersionAtLeast(26);
+#else
+                (Build.VERSION.SdkInt >= BuildVersionCodes.O); 
+#endif
+        }
+
     }
 }

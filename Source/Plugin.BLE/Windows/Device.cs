@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 
 #if WINDOWS_UWP
+using Windows.System;
 using Microsoft.Toolkit.Uwp.Connectivity;
 #else
+using Microsoft.UI.Dispatching;
 using CommunityToolkit.WinUI.Connectivity;
 #endif
 using Windows.Devices.Bluetooth;
@@ -17,13 +19,14 @@ namespace Plugin.BLE.UWP
 {
     public class Device : DeviceBase<ObservableBluetoothLEDevice>
     {
-        public Device(Adapter adapter, BluetoothLEDevice nativeDevice, int rssi, Guid id, IReadOnlyList<AdvertisementRecord> advertisementRecords = null) 
-            : base(adapter, new ObservableBluetoothLEDevice(nativeDevice.DeviceInformation)) 
+        public Device(Adapter adapter, BluetoothLEDevice nativeDevice, int rssi, Guid id, DispatcherQueue dq, IReadOnlyList<AdvertisementRecord> advertisementRecords = null, bool isConnectable = true) 
+            : base(adapter, new ObservableBluetoothLEDevice(nativeDevice.DeviceInformation, dq)) 
         {
             Rssi = rssi;
             Id = id;
             Name = nativeDevice.Name;
             AdvertisementRecords = advertisementRecords;
+            IsConnectable = isConnectable;
         }
 
         internal void Update(short btAdvRawSignalStrengthInDBm, IReadOnlyList<AdvertisementRecord> advertisementData)
@@ -98,5 +101,9 @@ namespace Plugin.BLE.UWP
             NativeDevice.BluetoothLEDevice?.Dispose();            
             GC.Collect();
         }
+
+        public override bool IsConnectable { get; protected set; }
+
+        public override bool SupportsIsConnectable { get => true; }
     }
 }

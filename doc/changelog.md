@@ -1,5 +1,26 @@
 # Changelog
 
+## 3.0 MAUI
+
+#### 3.0.0-beta.4
+- #669 Return error codes to application
+- #679 Querying adapter capabilities: extended advertisements & coded PHY
+- #685 Fix build on Mac
+- #688 IsConnectable
+
+#### 3.0.0-beta.3
+- #650 Add support for .NET 7
+- #671 Adding propagating disconnect event if happening during communication (Android)
+
+#### 3.0.0-beta.2
+- #640 Fix problems with MAUI on Windows (fixes #356)
+- #639 Fix warnings
+
+#### 3.0.0-beta.1
+- Add support for .NET 6 and MAUI, while keeping compatibility with Xamarin
+- #614 Upgrade to .NET 6
+- #638 GitHub Actions: update to .NET 7 (fixes #622, #626, #630)
+
 ## 2.2 UWP
 
 #### 2.2.0-pre5

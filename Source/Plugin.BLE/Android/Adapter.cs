@@ -161,7 +161,11 @@ namespace Plugin.BLE.Android
                 .SetNumOfMatches((int)BluetoothScanMatchNumber.OneAdvertisement)
                 .SetReportDelay(0);
 
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(23))
+#else
             if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+#endif
             {
                 // set the match mode on Android 6 and above
                 ssb.SetMatchMode(ScanMatchMode.ToNative());
@@ -175,7 +179,11 @@ namespace Plugin.BLE.Android
                 }
             }
             
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+#else
             if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
             {
                 // enable Bluetooth 5 Advertisement Extensions on Android 8.0 and above
                 ssb.SetLegacy(false);
@@ -249,7 +257,7 @@ namespace Plugin.BLE.Android
             var macBytes = deviceGuid.ToByteArray().Skip(10).Take(6).ToArray();
             var nativeDevice = _bluetoothAdapter.GetRemoteDevice(macBytes);
 
-            var device = new Device(this, nativeDevice, null, 0, new byte[] { });
+            var device = new Device(this, nativeDevice, null);
 
             await ConnectToDeviceAsync(device, connectParameters, cancellationToken);
             return device;
@@ -267,7 +275,7 @@ namespace Plugin.BLE.Android
 
             var bondedDevices = _bluetoothAdapter.BondedDevices.Where(d => d.Type == BluetoothDeviceType.Le || d.Type == BluetoothDeviceType.Dual);
 
-            return connectedDevices.Union(bondedDevices, new DeviceComparer()).Select(d => new Device(this, d, null, 0)).Cast<IDevice>().ToList();
+            return connectedDevices.Union(bondedDevices, new DeviceComparer()).Select(d => new Device(this, d, null)).Cast<IDevice>().ToList();
         }
 
         public override IReadOnlyList<IDevice> GetKnownDevicesByIds(Guid[] ids)
@@ -333,6 +341,39 @@ namespace Plugin.BLE.Android
             }
         }
 
+        public override bool supportsExtendedAdvertising()
+        {
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+#else
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
+            {
+                return _bluetoothAdapter.IsLeExtendedAdvertisingSupported;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public override bool supportsCodedPHY()
+        {
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+#else
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
+            {
+                return _bluetoothAdapter.IsLeCodedPhySupported;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+
         private class DeviceComparer : IEqualityComparer<BluetoothDevice>
         {
             public bool Equals(BluetoothDevice x, BluetoothDevice y)
@@ -360,10 +401,9 @@ namespace Plugin.BLE.Android
             {
                 Trace.Message("Adapter.LeScanCallback: " + bleDevice.Name);
 
-                _adapter.HandleDiscoveredDevice(new Device(_adapter, bleDevice, null, rssi, scanRecord));
+                _adapter.HandleDiscoveredDevice(new Device(_adapter, bleDevice, null, rssi, scanRecord)); // No IsConnectable!
             }
         }
-
 
         public class Api21BleScanCallback : ScanCallback
         {
@@ -396,6 +436,37 @@ namespace Plugin.BLE.Android
                 {
                     Trace.Message("Unkown error when creating device based on scan result. Message: " + e.Message);
                 }
+
+                foreach(var key in result.ScanRecord.ServiceData.Keys)
+                {
+                    records.Add(new AdvertisementRecord(AdvertisementRecordType.ServiceData, result.ScanRecord.ServiceData));
+                }*/
+
+                var device = new Device(_adapter, result.Device, null, result.Rssi, result.ScanRecord.GetBytes(),
+#if NET6_0_OR_GREATER
+                    OperatingSystem.IsAndroidVersionAtLeast(26)
+#else
+                    (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
+                    ? result.IsConnectable : true
+                ); ;
+
+                //Device device;
+                //if (result.ScanRecord.ManufacturerSpecificData.Size() > 0)
+                //{
+                //    int key = result.ScanRecord.ManufacturerSpecificData.KeyAt(0);
+                //    byte[] mdata = result.ScanRecord.GetManufacturerSpecificData(key);
+                //    byte[] mdataWithKey = new byte[mdata.Length + 2];
+                //    BitConverter.GetBytes((ushort)key).CopyTo(mdataWithKey, 0);
+                //    mdata.CopyTo(mdataWithKey, 2);
+                //    device = new Device(result.Device, null, null, result.Rssi, mdataWithKey);
+                //}
+                //else
+                //{
+                //    device = new Device(result.Device, null, null, result.Rssi, new byte[0]);
+                //}
+
+                _adapter.HandleDiscoveredDevice(device);
 
             }
         }

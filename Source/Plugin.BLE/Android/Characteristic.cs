@@ -67,6 +67,26 @@ namespace Plugin.BLE.Android
                     token: token);
             });
             return result;
+        protected override async Task<(byte[] data, int resultCode)> ReadNativeAsync()
+        {
+            return await TaskBuilder.FromEvent<(byte[] data, int resultCode), EventHandler<CharacteristicReadCallbackEventArgs>, EventHandler>(
+                execute: ReadInternal,
+                getCompleteHandler: (complete, reject) => ((sender, args) =>
+                {
+                    if (args.Characteristic.Uuid == NativeCharacteristic.Uuid)
+                    {
+                        int resultCode = (int)args.Status;
+                        complete((args.Characteristic.GetValue(), resultCode));
+                    }
+                }),
+                subscribeComplete: handler => _gattCallback.CharacteristicValueRead += handler,
+                unsubscribeComplete: handler => _gattCallback.CharacteristicValueRead -= handler,
+                getRejectHandler: reject => ((sender, args) =>
+                {
+                    reject(new Exception($"Device '{Service.Device.Id}' disconnected while reading characteristic with {Id}."));
+                }),
+                subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
+                unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler);
         }
 
         void ReadInternal()
@@ -99,6 +119,18 @@ namespace Plugin.BLE.Android
                    getRejectHandler: reject => ((sender, args) =>
                    {
                        reject(new Exception($"Device '{Service.Device.Id}' disconnected while writing characteristic with {Id}."));
+        protected override async Task<int> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType)
+        {
+            NativeCharacteristic.WriteType = writeType.ToNative();
+
+            return await TaskBuilder.FromEvent<int, EventHandler<CharacteristicWriteCallbackEventArgs>, EventHandler>(
+                execute: () => InternalWrite(data),
+                getCompleteHandler: (complete, reject) => ((sender, args) =>
+                   {
+                       if (args.Characteristic.Uuid == NativeCharacteristic.Uuid)
+                       {
+                           complete((int)args.Status);
+                       }
                    }),
                    subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
                    unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler,

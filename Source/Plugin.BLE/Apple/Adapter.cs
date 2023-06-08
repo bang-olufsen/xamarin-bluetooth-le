@@ -39,8 +39,9 @@ namespace Plugin.BLE.iOS
                     name = ((NSString)e.AdvertisementData.ValueForKey(CBAdvertisement.DataLocalNameKey)).ToString();
                 }
 
+                var advertisingRecords = ParseAdvertismentData(e.AdvertisementData, out bool isConnectable);
                 var device = new Device(this, e.Peripheral, _bleCentralManagerDelegate, name, e.RSSI.Int32Value,
-                    ParseAdvertismentData(e.AdvertisementData));
+                    advertisingRecords, isConnectable);
                 HandleDiscoveredDevice(device);
             };
 
@@ -307,9 +308,15 @@ namespace Plugin.BLE.iOS
             }
         }
 
-        public static List<AdvertisementRecord> ParseAdvertismentData(NSDictionary advertisementData)
+        private static bool ContainsDevice(IEnumerable<IDevice> list, CBPeripheral device)
+        {
+            return list.Any(d => Guid.ParseExact(device.Identifier.AsString(), "d") == d.Id);
+        }
+
+        public static List<AdvertisementRecord> ParseAdvertismentData(NSDictionary advertisementData, out bool isConnectable)
         {
             var records = new List<AdvertisementRecord>();
+            isConnectable = true;
 
             /*var keys = new List<NSString>
             {
@@ -423,6 +430,12 @@ namespace Plugin.BLE.iOS
                 catch (Exception)
                 {
                     Trace.Message($"Exception while parsing advertising key {o}");
+                    // A Boolean value that indicates whether the advertising event type is connectable.
+                    // The value for this key is an NSNumber object. You can use this value to determine whether a peripheral is connectable at a particular moment.
+                    // obsolete
+                    // records.Add(new AdvertisementRecord(AdvertisementRecordType.IsConnectable,
+                    //                                    new byte[] { ((NSNumber)advertisementData.ObjectForKey(key)).ByteValue }));
+                    isConnectable = ((NSNumber)advertisementData.ObjectForKey(key)).ByteValue != 0;
                 }
             }
 
@@ -589,5 +602,23 @@ namespace Plugin.BLE.iOS
                 _centralManager.FailedToConnectPeripheral -= errorEvent;
             }
         }
+
+#if NET6_0_OR_GREATER || __IOS__
+        public override bool supportsExtendedAdvertising()
+        {
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsIOSVersionAtLeast(13) || OperatingSystem.IsTvOSVersionAtLeast(13) || OperatingSystem.IsMacCatalystVersionAtLeast(13))
+#elif __IOS__
+            if (UIKit.UIDevice.CurrentDevice.CheckSystemVersion(13, 0))
+#endif
+            {
+                return CBCentralManager.SupportsFeatures(CBCentralManagerFeature.ExtendedScanAndConnect);
+            }
+            else
+            {
+                return false;
+            }
+        }
+#endif
     }
 }
