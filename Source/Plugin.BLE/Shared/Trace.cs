@@ -19,16 +19,7 @@ namespace Plugin.BLE.Abstractions
         {
             try
             {
-                TraceDebugImplementation?.Invoke(format, args);
-            }
-            catch { /* ignore */ }
-        }
-
-        public static void Info(string format, params object[] args)
-        {
-            try
-            {
-                TraceInfoImplementation?.Invoke(format, args);
+                TraceImplementation?.Invoke(format, args);
             }
             catch { /* ignore */ }
         }

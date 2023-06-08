@@ -47,7 +47,7 @@ namespace Plugin.BLE.Abstractions
         /// <summary>
         /// Gets the characteristics of the service.
         /// </summary>
-        public async Task<IReadOnlyList<ICharacteristic>> GetCharacteristicsAsync()
+        public async Task<IReadOnlyList<ICharacteristic>> GetCharacteristicsAsync(CancellationToken cancellationToken)
         {
             if (!_characteristics.Any())
             {
@@ -62,7 +62,7 @@ namespace Plugin.BLE.Abstractions
         /// Gets the first characteristic with the Id <paramref name="id"/>. 
         /// </summary>
         /// <param name="id">The id of the searched characteristic.</param>
-        public async Task<ICharacteristic> GetCharacteristicAsync(Guid id)
+        public async Task<ICharacteristic> GetCharacteristicAsync(Guid id, CancellationToken cancellationToken)
         {
             var characteristics = await GetCharacteristicsAsync(cancellationToken);
             return characteristics.FirstOrDefault(c => c.Id == id);
@@ -71,7 +71,7 @@ namespace Plugin.BLE.Abstractions
         /// <summary>
         /// Native implementation of <c>GetCharacteristicsAsync</c>.
         /// </summary>
-        protected abstract Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync();
+        protected abstract Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync(CancellationToken cancellationToken);
 
         /// <summary>
         /// Dispose the service.

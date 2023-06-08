@@ -425,7 +425,15 @@ namespace Plugin.BLE.Android
 
                 try
                 {
-                    var device = new Device(_adapter, result.Device, null, result.Rssi, result.ScanRecord.GetBytes());
+                    var device = new Device(_adapter, result.Device, null, result.Rssi, result.ScanRecord.GetBytes(),
+#if NET6_0_OR_GREATER
+                        OperatingSystem.IsAndroidVersionAtLeast(26)
+#else
+                    (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
+                        ? result.IsConnectable : true
+                    );
+
                     _adapter.HandleDiscoveredDevice(device);
                 }
                 catch (ArgumentException)
@@ -436,38 +444,6 @@ namespace Plugin.BLE.Android
                 {
                     Trace.Message("Unkown error when creating device based on scan result. Message: " + e.Message);
                 }
-
-                foreach(var key in result.ScanRecord.ServiceData.Keys)
-                {
-                    records.Add(new AdvertisementRecord(AdvertisementRecordType.ServiceData, result.ScanRecord.ServiceData));
-                }*/
-
-                var device = new Device(_adapter, result.Device, null, result.Rssi, result.ScanRecord.GetBytes(),
-#if NET6_0_OR_GREATER
-                    OperatingSystem.IsAndroidVersionAtLeast(26)
-#else
-                    (Build.VERSION.SdkInt >= BuildVersionCodes.O)
-#endif
-                    ? result.IsConnectable : true
-                ); ;
-
-                //Device device;
-                //if (result.ScanRecord.ManufacturerSpecificData.Size() > 0)
-                //{
-                //    int key = result.ScanRecord.ManufacturerSpecificData.KeyAt(0);
-                //    byte[] mdata = result.ScanRecord.GetManufacturerSpecificData(key);
-                //    byte[] mdataWithKey = new byte[mdata.Length + 2];
-                //    BitConverter.GetBytes((ushort)key).CopyTo(mdataWithKey, 0);
-                //    mdata.CopyTo(mdataWithKey, 2);
-                //    device = new Device(result.Device, null, null, result.Rssi, mdataWithKey);
-                //}
-                //else
-                //{
-                //    device = new Device(result.Device, null, null, result.Rssi, new byte[0]);
-                //}
-
-                _adapter.HandleDiscoveredDevice(device);
-
             }
         }
     }

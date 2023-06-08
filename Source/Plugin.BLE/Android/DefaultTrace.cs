@@ -10,7 +10,7 @@ namespace Plugin.BLE
 
         public static void DefaultTraceInit()
         {
-            Trace.TraceDebugImplementation = (parameter, args) =>
+            Trace.TraceImplementation = (parameter, args) =>
             {
                 try
                 {
@@ -22,7 +22,7 @@ namespace Plugin.BLE
                 }
             };
 
-            Trace.TraceInfoImplementation = (parameter, args) =>
+            Trace.TraceImplementation = (parameter, args) =>
             {
                 try
                 {

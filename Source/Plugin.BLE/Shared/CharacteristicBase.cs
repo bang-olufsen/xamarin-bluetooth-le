@@ -123,7 +123,7 @@ namespace Plugin.BLE.Abstractions
             }
 
             Trace.Message("Characteristic.ReadAsync");
-            return await ReadNativeAsync(cancellationToken);
+            return await ReadNativeAsync();
         }
 
         /// <summary>
@@ -146,7 +146,7 @@ namespace Plugin.BLE.Abstractions
             var writeType = GetWriteType();
 
             Trace.Message("Characteristic.WriteAsync");
-            return await WriteNativeAsync(data, writeType, cancellationToken);
+            return await WriteNativeAsync(data, writeType);
         }
 
         private CharacteristicWriteType GetWriteType()
@@ -170,7 +170,7 @@ namespace Plugin.BLE.Abstractions
             }
 
             Trace.Message("Characteristic.StartUpdates");
-            return StartUpdatesNativeAsync(token);
+            return StartUpdatesNativeAsync(cancellationToken);
         }
 
         /// <summary>

@@ -331,9 +331,10 @@ namespace Plugin.BLE.iOS
 
             foreach (var o in advertisementData.Keys)
             {
+                var key = (NSString)o;
+
                 try
                 {
-                    var key = (NSString)o;
                     if (key == CBAdvertisement.DataLocalNameKey)
                     {
                         var value = advertisementData.ObjectForKey(key) as NSString;
@@ -423,8 +424,10 @@ namespace Plugin.BLE.iOS
                     {
                         // A Boolean value that indicates whether the advertising event type is connectable.
                         // The value for this key is an NSNumber object. You can use this value to determine whether a peripheral is connectable at a particular moment.
-                        records.Add(new AdvertisementRecord(AdvertisementRecordType.IsConnectable,
-                            new byte[] { ((NSNumber)advertisementData.ObjectForKey(key)).ByteValue }));
+                        //records.Add(new AdvertisementRecord(AdvertisementRecordType.IsConnectable,
+                        //    new byte[] { ((NSNumber)advertisementData.ObjectForKey(key)).ByteValue }));
+
+                        isConnectable = ((NSNumber)advertisementData.ObjectForKey(key)).ByteValue != 0;
                     }
                 }
                 catch (Exception)
@@ -575,7 +578,7 @@ namespace Plugin.BLE.iOS
 
             EventHandler<CBPeripheralErrorEventArgs> errorEvent = (sender, args) =>
             {
-                Trace.Info($"An error happend while connecting to the device: {args.Error.Code} + {args.Error.LocalizedDescription}");
+                Trace.Message($"An error happend while connecting to the device: {args.Error.Code} + {args.Error.LocalizedDescription}");
                 completionSource.TrySetResult(null);
             };
 
