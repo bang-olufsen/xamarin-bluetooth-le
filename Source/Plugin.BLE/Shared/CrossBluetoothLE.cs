@@ -7,17 +7,35 @@ namespace Plugin.BLE
     /// <summary>
     /// Cross platform bluetooth LE implemenation.
     /// </summary>
-    public class PortableCrossBluetoothLE
+    public static class CrossBluetoothLE
     {
+        static readonly Lazy<IBluetoothLE> Implementation = new Lazy<IBluetoothLE>(CreateImplementation, System.Threading.LazyThreadSafetyMode.PublicationOnly);
+
         /// <summary>
         /// Current bluetooth LE implementation.
         /// </summary>
-        public IBluetoothLE Current
+        public static IBluetoothLE Current
         {
             get
             {
-                throw NotImplementedInReferenceAssembly();
+                var ret = Implementation.Value;
+                if (ret == null)
+                {
+                    throw NotImplementedInReferenceAssembly();
+                }
+                return ret;
             }
+        }
+
+        static IBluetoothLE CreateImplementation()
+        {
+#if NETSTANDARD
+            return null;
+#else
+            var implementation = new BleImplementation();
+            implementation.Initialize();
+            return implementation;
+#endif
         }
 
         internal static Exception NotImplementedInReferenceAssembly()

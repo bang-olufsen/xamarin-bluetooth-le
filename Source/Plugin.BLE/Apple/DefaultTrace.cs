@@ -21,18 +21,6 @@ namespace Plugin.BLE
                     _logger.Debug(() => $"Failed to format string with arguments, ex: {ex.Message}");
                 }
             };
-
-            Trace.TraceImplementation = (parameter, args) =>
-            {
-                try
-                {
-                    _logger.Info(string.Format(parameter, args));
-                }
-                catch (Exception ex)
-                {
-                    _logger.Info($"Failed to format string with arguments, ex: {ex.Message}");
-                }
-            };
         }
     }
 }
