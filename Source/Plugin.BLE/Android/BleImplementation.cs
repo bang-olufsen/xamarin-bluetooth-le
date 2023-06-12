@@ -18,6 +18,11 @@ namespace Plugin.BLE
     {
         private static volatile Handler _handler;
 
+        public BleImplementation()
+        {
+            Initialize();
+        }
+
         /// <summary>
         /// Set this field to force are task builder execute() actions to be invoked on the main app tread one at a time (synchronous queue)
         /// </summary>

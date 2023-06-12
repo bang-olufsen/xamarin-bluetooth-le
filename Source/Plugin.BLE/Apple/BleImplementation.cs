@@ -15,6 +15,11 @@ namespace Plugin.BLE
         private CBCentralManager _centralManager;
         private IBleCentralManagerDelegate _bleCentralManagerDelegate;
 
+        public BleImplementation()
+        {
+            Initialize();
+        }
+
         public static void UseRestorationIdentifier(string restorationIdentifier)
         {
             _restorationIdentifier = restorationIdentifier;
