@@ -37,8 +37,7 @@ namespace Plugin.BLE
                     {
                         if (tries >= MaxRetries)
                         {
-                            //_logger.Error(ex, "Failed performing a task. Trying again " + $"({tries}/{MaxRetries})");
-
+                            _logger.Error(ex, "Failed performing a task. Trying again " + $"({tries}/{MaxRetries})");
                             completion.TrySetException(ex);
                         }
                         else
