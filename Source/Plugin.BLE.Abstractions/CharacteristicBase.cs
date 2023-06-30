@@ -70,7 +70,7 @@ namespace Plugin.BLE.Abstractions
                 throw new InvalidOperationException("Characteristic does not support read.");
             }
 
-            Trace.Message("Characteristic.ReadAsync");
+            Trace.Message($"Characteristic.ReadAsync (id={Id})");
             return await ReadNativeAsync(cancellationToken);
         }
 
@@ -88,7 +88,7 @@ namespace Plugin.BLE.Abstractions
 
             var writeType = GetWriteType();
 
-            Trace.Message("Characteristic.WriteAsync");
+            Trace.Message($"Characteristic.WriteAsync (id={Id})");
             return await WriteNativeAsync(data, writeType, cancellationToken);
         }
 
@@ -109,7 +109,7 @@ namespace Plugin.BLE.Abstractions
                 throw new InvalidOperationException("Characteristic does not support update.");
             }
 
-            Trace.Message("Characteristic.StartUpdates");
+            Trace.Message($"Characteristic.StartUpdates (id={Id})");
             return StartUpdatesNativeAsync(token);
         }
 
