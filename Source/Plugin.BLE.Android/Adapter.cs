@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Android.App;
 using Android.Bluetooth;
 using Android.Bluetooth.LE;
 using Android.OS;
@@ -13,6 +14,7 @@ using Plugin.BLE.Extensions;
 using Object = Java.Lang.Object;
 using Trace = Plugin.BLE.Abstractions.Trace;
 using Plugin.BLE.Abstractions.EventArgs;
+using BluetoothPhy = Android.Bluetooth.BluetoothPhy;
 
 namespace Plugin.BLE.Android
 {
@@ -34,6 +36,8 @@ namespace Plugin.BLE.Android
         ///  Thread safety
         /// </summary>
         public object ConnectedDeviceRegistryLock { get; } = new object();
+
+        public BluetoothPhy CurrentPhy { get; set; }
 
         public Adapter(BluetoothManager bluetoothManager)
         {
@@ -169,7 +173,24 @@ namespace Plugin.BLE.Android
             var device = new Device(this, nativeDevice, null, 0, new byte[] { });
 
             await ConnectToDeviceAsync(device, connectParameters, cancellationToken);
+
+            Set2MPHY(device);
+
             return device;
+        }
+
+        public void Set2MPHY(Device device)
+        {
+            if (Build.VERSION.SdkInt > BuildVersionCodes.O)
+            {
+                var twoMphySupport = _bluetoothAdapter?.IsLe2MPhySupported;
+                if (twoMphySupport == true)
+                {
+                    var server = device.GattServer;
+                    server?.SetPreferredPhy(BluetoothPhy.Le2mMask, BluetoothPhy.Le2mMask,
+                        BluetoothPhyOption.NoPreferred);
+                }
+            }
         }
 
         public override List<IDevice> GetSystemConnectedOrPairedDevices(Guid[] services = null)
@@ -230,6 +251,7 @@ namespace Plugin.BLE.Android
                     await scanTask;
 
                     await ConnectToDeviceAsync(device, new ConnectParameters(false, true), cancellationToken);
+                    Set2MPHY(device as Device);
                     return device;
                 }
                 finally
@@ -238,7 +260,7 @@ namespace Plugin.BLE.Android
                 }
             }
             else
-            {                
+            {
                 return await ConnectToKnownDeviceAsync(uuid, new ConnectParameters(false, true), cancellationToken);
             }
         }

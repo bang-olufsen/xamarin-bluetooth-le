@@ -1,5 +1,6 @@
 ﻿using System;
 using Android.Bluetooth;
+using Android.Bluetooth.LE;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Extensions;
 using Plugin.BLE.Android.CallbackEventArgs;
@@ -16,6 +17,8 @@ namespace Plugin.BLE.Android
         event EventHandler<RssiReadCallbackEventArgs> RemoteRssiRead;
         event EventHandler ConnectionInterrupted;
         event EventHandler<MtuRequestCallbackEventArgs> MtuRequested;
+
+        event EventHandler<PhyEventArgs> OnPhyChange;
     }
 
     public class GattCallback : BluetoothGattCallback, IGattCallback
@@ -32,10 +35,25 @@ namespace Plugin.BLE.Android
         public event EventHandler<MtuRequestCallbackEventArgs> MtuRequested;
         public event EventHandler OnDisconnected;
 
+        public event EventHandler<PhyEventArgs> OnPhyChange;
+
         public GattCallback(Adapter adapter, Device device)
         {
             _adapter = adapter;
             _device = device;
+        }
+
+        public override void OnPhyUpdate(BluetoothGatt gatt, ScanSettingsPhy txPhy, ScanSettingsPhy rxPhy, GattStatus status)
+        {
+            base.OnPhyUpdate(gatt, txPhy, rxPhy, status);
+            var args = new PhyEventArgs
+            {
+                TxPhy = txPhy,
+                RxPhy = rxPhy,
+                Status = status,
+            };
+
+            OnPhyChange?.Invoke(this, args);
         }
 
         public override void OnConnectionStateChange(BluetoothGatt gatt, GattStatus status, ProfileState newState)
@@ -112,7 +130,7 @@ namespace Plugin.BLE.Android
                 case ProfileState.Connected:
                     Trace.Message("Connected");
 
-                    //Check if the operation was requested by the user                    
+                    //Check if the operation was requested by the user
                     if (_device.IsOperationRequested)
                     {
                         _device.Update(gatt.Device, gatt);
@@ -163,9 +181,9 @@ namespace Plugin.BLE.Android
         private void CloseGattInstances(BluetoothGatt gatt)
         {
             //ToDO just for me
-            Trace.Message($"References of parnet device gatt and callback gatt equal? {ReferenceEquals(_device._gatt, gatt).ToString().ToUpper()}");
+            Trace.Message($"References of parnet device gatt and callback gatt equal? {ReferenceEquals(_device.GattServer, gatt).ToString().ToUpper()}");
 
-            if (!ReferenceEquals(gatt, _device._gatt))
+            if (!ReferenceEquals(gatt, _device.GattServer))
             {
                 gatt.Close();
             }
