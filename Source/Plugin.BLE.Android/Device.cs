@@ -181,9 +181,9 @@ namespace Plugin.BLE.Android
         /// </summary>
         public void CloseGatt()
         {
-            _gatt?.Disconnect();
-            _gatt?.Close();
-            _gatt = null;
+            GattServer?.Disconnect();
+            GattServer?.Close();
+            GattServer = null;
 
             while (_gattList.Any())
             {
