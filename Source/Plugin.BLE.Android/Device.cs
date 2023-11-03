@@ -119,7 +119,6 @@ namespace Plugin.BLE.Android
             }
             else
             {
-
                 if (handler?.Looper != Looper.MainLooper)
                 {
                     handler = new Handler(Looper.MainLooper);

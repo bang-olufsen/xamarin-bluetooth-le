@@ -86,8 +86,8 @@ namespace Plugin.BLE.Android
 
             var result = false;
 
-            await CrazyQueue.Run(async () =>
-            {
+            ////await CrazyQueue.Run(async () =>
+            ////{
                 result = await TaskBuilder.FromEvent<bool, EventHandler<CharacteristicWriteCallbackEventArgs>, EventHandler>(
                     execute: () => InternalWrite(data),
                     getCompleteHandler: (complete, reject) => ((sender, args) =>
@@ -106,7 +106,7 @@ namespace Plugin.BLE.Android
                    subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
                    unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler,
                    token: token);
-            });
+            ////});
 
             return result;
         }
