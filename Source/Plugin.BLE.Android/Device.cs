@@ -25,6 +25,8 @@ namespace Plugin.BLE.Android
         /// </summary>
         internal BluetoothGatt _gatt;
 
+        internal Queue<BluetoothGatt> _gattList = new Queue<BluetoothGatt>();
+
         /// <summary>
         /// we also track this because of gogole's weird API. the gatt callback is where
         /// we'll get notified when services are enumerated
@@ -46,6 +48,7 @@ namespace Plugin.BLE.Android
             BluetoothDevice = nativeDevice;
             _gatt = gatt;
 
+            _gattList.Enqueue(gatt);
 
             Id = ParseDeviceId();
             Name = BluetoothDevice.Name;
@@ -171,8 +174,27 @@ namespace Plugin.BLE.Android
         /// </summary>
         public void CloseGatt()
         {
+            _gatt?.Disconnect();
             _gatt?.Close();
             _gatt = null;
+
+            while (_gattList.Any())
+            {
+                var g = _gattList.Dequeue();
+                if (g != null)
+                {
+                    try
+                    {
+                        g.Disconnect();
+                        g.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                        throw;
+                    }
+                }
+            }
 
             // ClossGatt might will get called on signal loss without Disconnect being called we have to make sure we clear the services
             // Clear services & characteristics otherwise we will get gatt operation return FALSE when connecting to the same IDevice instace at a later time
@@ -218,19 +240,27 @@ namespace Plugin.BLE.Android
             var records = new List<AdvertisementRecord>();
 
             if (scanRecord == null)
+            {
                 return records;
+            }
 
             int index = 0;
             while (index < scanRecord.Length)
             {
                 byte length = scanRecord[index++];
-                //Done once we run out of records 
+                //Done once we run out of records
                 // 1 byte for type and length-1 bytes for data
-                if (length == 0) break;
+                if (length == 0)
+                {
+                    break;
+                }
 
                 int type = scanRecord[index];
                 //Done if our record isn't a valid type
-                if (type == 0) break;
+                if (type == 0)
+                {
+                    break;
+                }
 
                 if (!Enum.IsDefined(typeof(AdvertisementRecordType), type))
                 {

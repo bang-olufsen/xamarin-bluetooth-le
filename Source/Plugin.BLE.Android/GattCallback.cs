@@ -48,8 +48,7 @@ namespace Plugin.BLE.Android
                 return;
             }
 
-            //ToDo ignore just for me
-            Trace.Message($"References of parent device and gatt callback device equal? {ReferenceEquals(_device.BluetoothDevice, gatt.Device).ToString().ToUpper()}");
+            Trace.Message($"New connection state for {gatt.Device.Name}: {newState}");
 
             Trace.Message($"OnConnectionStateChange: GattStatus: {status}");
 
@@ -162,11 +161,11 @@ namespace Plugin.BLE.Android
 
         private void CloseGattInstances(BluetoothGatt gatt)
         {
-            //ToDO just for me
-            Trace.Message($"References of parnet device gatt and callback gatt equal? {ReferenceEquals(_device._gatt, gatt).ToString().ToUpper()}");
+            Trace.Message("Explicitly disconnect gatt instance");
 
-            if (!ReferenceEquals(gatt, _device._gatt))
+            if (gatt != null)
             {
+                gatt.Disconnect();
                 gatt.Close();
             }
 
