@@ -132,5 +132,7 @@ namespace Plugin.BLE.Abstractions.Contracts
         /// https://developer.apple.com/library/archive/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/Art/ReconnectingToAPeripheral_2x.png
         /// </summary>
         Task<IDevice> ConnectAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken));
+
+        void Set2MPHY(IDevice device);
     }
 }

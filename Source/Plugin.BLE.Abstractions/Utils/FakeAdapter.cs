@@ -52,5 +52,9 @@ namespace Plugin.BLE.Abstractions.Utils
         {
             return Task.FromResult(default(IDevice));
         }
+
+        public override void Set2MPHY(IDevice device)
+        {
+        }
     }
 }
