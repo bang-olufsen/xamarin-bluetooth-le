@@ -512,5 +512,10 @@ namespace Plugin.BLE.iOS
                 _centralManager.FailedToConnectPeripheral -= errorEvent;
             }
         }
+
+        public override void Set2MPHY(IDevice device)
+        {
+            //Do nothing, not supported in iOS
+        }
     }
 }
