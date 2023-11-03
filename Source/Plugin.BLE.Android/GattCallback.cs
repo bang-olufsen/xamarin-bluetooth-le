@@ -1,6 +1,7 @@
 ﻿using System;
 using Android.Bluetooth;
 using Android.Bluetooth.LE;
+using Android.Runtime;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Extensions;
 using Plugin.BLE.Android.CallbackEventArgs;
@@ -43,17 +44,16 @@ namespace Plugin.BLE.Android
             _device = device;
         }
 
-        public override void OnPhyUpdate(BluetoothGatt gatt, ScanSettingsPhy txPhy, ScanSettingsPhy rxPhy, GattStatus status)
+        public override void OnPhyRead(BluetoothGatt gatt, [GeneratedEnum] ScanSettingsPhy txPhy, [GeneratedEnum] ScanSettingsPhy rxPhy, [GeneratedEnum] GattStatus status)
         {
-            base.OnPhyUpdate(gatt, txPhy, rxPhy, status);
-            var args = new PhyEventArgs
-            {
-                TxPhy = txPhy,
-                RxPhy = rxPhy,
-                Status = status,
-            };
+            Trace.Message($"[{gatt.Device.Name} PHY read] tx: {txPhy} rx: {rxPhy} status: {status}");
+            base.OnPhyRead(gatt, txPhy, rxPhy, status);
+        }
 
-            OnPhyChange?.Invoke(this, args);
+        public override void OnPhyUpdate(BluetoothGatt gatt, [GeneratedEnum] ScanSettingsPhy txPhy, [GeneratedEnum] ScanSettingsPhy rxPhy, [GeneratedEnum] GattStatus status)
+        {
+            Trace.Message($"[{gatt.Device.Name} PHY update] tx: {txPhy} rx: {rxPhy} status: {status}");
+            base.OnPhyUpdate(gatt, txPhy, rxPhy, status);
         }
 
         public override void OnConnectionStateChange(BluetoothGatt gatt, GattStatus status, ProfileState newState)
@@ -182,6 +182,7 @@ namespace Plugin.BLE.Android
         {
             //ToDO just for me
             Trace.Message($"References of parnet device gatt and callback gatt equal? {ReferenceEquals(_device.GattServer, gatt).ToString().ToUpper()}");
+
 
             if (!ReferenceEquals(gatt, _device.GattServer))
             {

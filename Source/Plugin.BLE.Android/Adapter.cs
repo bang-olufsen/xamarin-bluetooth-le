@@ -174,19 +174,17 @@ namespace Plugin.BLE.Android
 
             await ConnectToDeviceAsync(device, connectParameters, cancellationToken);
 
-            Set2MPHY(device);
-
             return device;
         }
 
-        public void Set2MPHY(Device device)
+        public override void Set2MPHY(IDevice device)
         {
             if (Build.VERSION.SdkInt > BuildVersionCodes.O)
             {
                 var twoMphySupport = _bluetoothAdapter?.IsLe2MPhySupported;
                 if (twoMphySupport == true)
                 {
-                    var server = device.GattServer;
+                    var server = (device as Device).GattServer;
                     server?.SetPreferredPhy(BluetoothPhy.Le2mMask, BluetoothPhy.Le2mMask,
                         BluetoothPhyOption.NoPreferred);
                 }
@@ -251,7 +249,6 @@ namespace Plugin.BLE.Android
                     await scanTask;
 
                     await ConnectToDeviceAsync(device, new ConnectParameters(false, true), cancellationToken);
-                    Set2MPHY(device as Device);
                     return device;
                 }
                 finally
