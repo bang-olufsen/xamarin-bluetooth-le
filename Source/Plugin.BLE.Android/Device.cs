@@ -23,7 +23,7 @@ namespace Plugin.BLE.Android
         /// we have to keep a reference to this because Android's api is weird and requires
         /// the GattServer in order to do nearly anything, including enumerating services
         /// </summary>
-        public BluetoothGatt GattServer;
+        internal BluetoothGatt GattServer { get; private set; }
 
         internal Queue<BluetoothGatt> _gattList = new Queue<BluetoothGatt>();
 
@@ -132,7 +132,10 @@ namespace Plugin.BLE.Android
 
                 handler.Post(() =>
                 {
-                    GattServer = BluetoothDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback,
+                    GattServer = BluetoothDevice.ConnectGatt(
+                        Application.Context,
+                        autoconnect,
+                        _gattCallback,
                         BluetoothTransports.Le);
                 });
             }
@@ -197,7 +200,7 @@ namespace Plugin.BLE.Android
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine(e);
+                        Trace.Message(e.Message);
                         throw;
                     }
                 }

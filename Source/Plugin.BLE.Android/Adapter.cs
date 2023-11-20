@@ -37,8 +37,6 @@ namespace Plugin.BLE.Android
         /// </summary>
         public object ConnectedDeviceRegistryLock { get; } = new object();
 
-        public BluetoothPhy CurrentPhy { get; set; }
-
         public Adapter(BluetoothManager bluetoothManager)
         {
             _bluetoothManager = bluetoothManager;
@@ -185,7 +183,9 @@ namespace Plugin.BLE.Android
                 if (twoMphySupport == true)
                 {
                     var server = (device as Device).GattServer;
-                    server?.SetPreferredPhy(BluetoothPhy.Le2mMask, BluetoothPhy.Le2mMask,
+                    server?.SetPreferredPhy(
+                        BluetoothPhy.Le2mMask,
+                        BluetoothPhy.Le2mMask,
                         BluetoothPhyOption.NoPreferred);
                 }
             }

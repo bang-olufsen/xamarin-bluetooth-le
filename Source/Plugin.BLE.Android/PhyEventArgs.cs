@@ -1,5 +1,3 @@
-
-
 using System;
 using Android.Bluetooth;
 using Android.Bluetooth.LE;
