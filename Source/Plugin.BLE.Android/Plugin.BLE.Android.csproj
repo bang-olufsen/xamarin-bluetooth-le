@@ -66,6 +66,7 @@
     <Compile Include="Extensions\GattWriteTypeExtension.cs" />
     <Compile Include="Extensions\ScanModeExtension.cs" />
     <Compile Include="GattCallback.cs" />
+    <Compile Include="PhyEventArgs.cs" />
     <Compile Include="Resources\Resource.Designer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Service.cs" />

@@ -271,5 +271,7 @@ namespace Plugin.BLE.Abstractions
 
         public abstract Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters = default(ConnectParameters), CancellationToken cancellationToken = default(CancellationToken));
         public abstract List<IDevice> GetSystemConnectedOrPairedDevices(Guid[] services = null);
+
+        public abstract void Set2MPHY(IDevice device);
     }
 }

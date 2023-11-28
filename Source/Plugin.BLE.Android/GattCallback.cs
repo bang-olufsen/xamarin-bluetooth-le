@@ -1,5 +1,7 @@
 ﻿using System;
 using Android.Bluetooth;
+using Android.Bluetooth.LE;
+using Android.Runtime;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Extensions;
 using Plugin.BLE.Android.CallbackEventArgs;
@@ -16,6 +18,8 @@ namespace Plugin.BLE.Android
         event EventHandler<RssiReadCallbackEventArgs> RemoteRssiRead;
         event EventHandler ConnectionInterrupted;
         event EventHandler<MtuRequestCallbackEventArgs> MtuRequested;
+
+        event EventHandler<PhyEventArgs> OnPhyChange;
     }
 
     public class GattCallback : BluetoothGattCallback, IGattCallback
@@ -32,10 +36,24 @@ namespace Plugin.BLE.Android
         public event EventHandler<MtuRequestCallbackEventArgs> MtuRequested;
         public event EventHandler OnDisconnected;
 
+        public event EventHandler<PhyEventArgs> OnPhyChange;
+
         public GattCallback(Adapter adapter, Device device)
         {
             _adapter = adapter;
             _device = device;
+        }
+
+        public override void OnPhyRead(BluetoothGatt gatt, [GeneratedEnum] ScanSettingsPhy txPhy, [GeneratedEnum] ScanSettingsPhy rxPhy, [GeneratedEnum] GattStatus status)
+        {
+            Trace.Message($"[{gatt.Device.Name} PHY read] tx: {txPhy} rx: {rxPhy} status: {status}");
+            base.OnPhyRead(gatt, txPhy, rxPhy, status);
+        }
+
+        public override void OnPhyUpdate(BluetoothGatt gatt, [GeneratedEnum] ScanSettingsPhy txPhy, [GeneratedEnum] ScanSettingsPhy rxPhy, [GeneratedEnum] GattStatus status)
+        {
+            Trace.Message($"[{gatt.Device.Name} PHY update] tx: {txPhy} rx: {rxPhy} status: {status}");
+            base.OnPhyUpdate(gatt, txPhy, rxPhy, status);
         }
 
         public override void OnConnectionStateChange(BluetoothGatt gatt, GattStatus status, ProfileState newState)
@@ -48,8 +66,7 @@ namespace Plugin.BLE.Android
                 return;
             }
 
-            //ToDo ignore just for me
-            Trace.Message($"References of parent device and gatt callback device equal? {ReferenceEquals(_device.BluetoothDevice, gatt.Device).ToString().ToUpper()}");
+            Trace.Message($"New connection state for {gatt.Device.Name}: {newState}");
 
             Trace.Message($"OnConnectionStateChange: GattStatus: {status}");
 
@@ -112,7 +129,7 @@ namespace Plugin.BLE.Android
                 case ProfileState.Connected:
                     Trace.Message("Connected");
 
-                    //Check if the operation was requested by the user                    
+                    //Check if the operation was requested by the user
                     if (_device.IsOperationRequested)
                     {
                         _device.Update(gatt.Device, gatt);
@@ -162,11 +179,11 @@ namespace Plugin.BLE.Android
 
         private void CloseGattInstances(BluetoothGatt gatt)
         {
-            //ToDO just for me
-            Trace.Message($"References of parnet device gatt and callback gatt equal? {ReferenceEquals(_device._gatt, gatt).ToString().ToUpper()}");
+            Trace.Message("Explicitly disconnect gatt instance");
 
-            if (!ReferenceEquals(gatt, _device._gatt))
+            if (gatt != null)
             {
+                gatt.Disconnect();
                 gatt.Close();
             }
 

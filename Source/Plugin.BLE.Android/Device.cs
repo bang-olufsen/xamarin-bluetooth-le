@@ -23,7 +23,9 @@ namespace Plugin.BLE.Android
         /// we have to keep a reference to this because Android's api is weird and requires
         /// the GattServer in order to do nearly anything, including enumerating services
         /// </summary>
-        internal BluetoothGatt _gatt;
+        internal BluetoothGatt GattServer { get; private set; }
+
+        internal Queue<BluetoothGatt> _gattList = new Queue<BluetoothGatt>();
 
         /// <summary>
         /// we also track this because of gogole's weird API. the gatt callback is where
@@ -44,8 +46,9 @@ namespace Plugin.BLE.Android
         public void Update(BluetoothDevice nativeDevice, BluetoothGatt gatt)
         {
             BluetoothDevice = nativeDevice;
-            _gatt = gatt;
+            GattServer = gatt;
 
+            _gattList.Enqueue(gatt);
 
             Id = ParseDeviceId();
             Name = BluetoothDevice.Name;
@@ -56,16 +59,16 @@ namespace Plugin.BLE.Android
 
         protected override async Task<IEnumerable<IService>> GetServicesNativeAsync()
         {
-            if (_gattCallback == null || _gatt == null)
+            if (_gattCallback == null || GattServer == null)
             {
                 return Enumerable.Empty<IService>();
             }
 
             return await TaskBuilder.FromEvent<IEnumerable<IService>, EventHandler<ServicesDiscoveredCallbackEventArgs>, EventHandler>(
-                execute: () => _gatt.DiscoverServices(),
+                execute: () => GattServer.DiscoverServices(),
                 getCompleteHandler: (complete, reject) => ((sender, args) =>
                 {
-                    complete(_gatt.Services.Select(service => new Service(service, _gatt, _gattCallback, this)));
+                    complete(GattServer.Services.Select(service => new Service(service, GattServer, _gattCallback, this)));
                 }),
                 subscribeComplete: handler => _gattCallback.ServicesDiscovered += handler,
                 unsubscribeComplete: handler => _gattCallback.ServicesDiscovered -= handler,
@@ -93,7 +96,10 @@ namespace Plugin.BLE.Android
                     handler = new Handler(Looper.MainLooper);
                 }
 
-                handler.Post(() => BluetoothDevice.ConnectGatt(Application.Context, connectParameters.AutoConnect, _gattCallback));
+                handler.Post(() =>
+                {
+                    GattServer = BluetoothDevice.ConnectGatt(Application.Context, connectParameters.AutoConnect, _gattCallback);
+                });
             }
         }
 
@@ -119,13 +125,19 @@ namespace Plugin.BLE.Android
             }
             else
             {
-
                 if (handler?.Looper != Looper.MainLooper)
                 {
                     handler = new Handler(Looper.MainLooper);
                 }
 
-                handler.Post(() => BluetoothDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback, BluetoothTransports.Le));
+                handler.Post(() =>
+                {
+                    GattServer = BluetoothDevice.ConnectGatt(
+                        Application.Context,
+                        autoconnect,
+                        _gattCallback,
+                        BluetoothTransports.Le);
+                });
             }
 
         }
@@ -136,7 +148,7 @@ namespace Plugin.BLE.Android
         /// </summary>
         public void Disconnect()
         {
-            if (_gatt != null)
+            if (GattServer != null)
             {
                 IsOperationRequested = true;
 
@@ -149,7 +161,7 @@ namespace Plugin.BLE.Android
                 try
                 {
                     _gattCallback.OnDisconnected += disconnectWaitHandler;
-                    _gatt.Disconnect();
+                    GattServer.Disconnect();
 
                     // Wait closing untill the disconnect event has happend - otherwise it might never be triggered
                     resetEvent.WaitOne(TimeSpan.FromSeconds(2));
@@ -167,13 +179,32 @@ namespace Plugin.BLE.Android
         }
 
         /// <summary>
-        /// CloseGatt is called by the gattCallback in case of user disconnect or a disconnect by signal loss or a connection error. 
+        /// CloseGatt is called by the gattCallback in case of user disconnect or a disconnect by signal loss or a connection error.
         /// Cleares all cached services.
         /// </summary>
         public void CloseGatt()
         {
-            _gatt?.Close();
-            _gatt = null;
+            GattServer?.Disconnect();
+            GattServer?.Close();
+            GattServer = null;
+
+            while (_gattList.Any())
+            {
+                var g = _gattList.Dequeue();
+                if (g != null)
+                {
+                    try
+                    {
+                        g.Disconnect();
+                        g.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        Trace.Message(e.Message);
+                        throw;
+                    }
+                }
+            }
 
             // ClossGatt might will get called on signal loss without Disconnect being called we have to make sure we clear the services
             // Clear services & characteristics otherwise we will get gatt operation return FALSE when connecting to the same IDevice instace at a later time
@@ -190,7 +221,7 @@ namespace Plugin.BLE.Android
                 case ProfileState.Connected:
                     // if the device does not have a gatt instance we can't use it in the app, so we need to explicitly be able to connect it
                     // even if the profile state is connected
-                    return _gatt != null ? DeviceState.Connected : DeviceState.Limited;
+                    return GattServer != null ? DeviceState.Connected : DeviceState.Limited;
 
                 case ProfileState.Connecting:
                     return DeviceState.Connecting;
@@ -219,19 +250,27 @@ namespace Plugin.BLE.Android
             var records = new List<AdvertisementRecord>();
 
             if (scanRecord == null)
+            {
                 return records;
+            }
 
             int index = 0;
             while (index < scanRecord.Length)
             {
                 byte length = scanRecord[index++];
-                //Done once we run out of records 
+                //Done once we run out of records
                 // 1 byte for type and length-1 bytes for data
-                if (length == 0) break;
+                if (length == 0)
+                {
+                    break;
+                }
 
                 int type = scanRecord[index];
                 //Done if our record isn't a valid type
-                if (type == 0) break;
+                if (type == 0)
+                {
+                    break;
+                }
 
                 if (!Enum.IsDefined(typeof(AdvertisementRecordType), type))
                 {
@@ -277,14 +316,14 @@ namespace Plugin.BLE.Android
 
         public override async Task<bool> UpdateRssiAsync()
         {
-            if (_gatt == null || _gattCallback == null)
+            if (GattServer == null || _gattCallback == null)
             {
                 Trace.Message("You can't read the RSSI value for disconnected devices except on discovery on Android. Device is {0}", State);
                 return false;
             }
 
             return await TaskBuilder.FromEvent<bool, EventHandler<RssiReadCallbackEventArgs>, EventHandler>(
-              execute: () => _gatt.ReadRemoteRssi(),
+              execute: () => GattServer.ReadRemoteRssi(),
               getCompleteHandler: (complete, reject) => ((sender, args) =>
               {
                   if (args.Error == null)
@@ -311,7 +350,7 @@ namespace Plugin.BLE.Android
 
         protected override async Task<int> RequestMtuNativeAsync(int requestValue)
         {
-            if (_gatt == null || _gattCallback == null)
+            if (GattServer == null || _gattCallback == null)
             {
                 Trace.Message("You can't request a MTU for disconnected devices. Device is {0}", State);
                 return -1;
@@ -324,7 +363,7 @@ namespace Plugin.BLE.Android
             }
 
             return await TaskBuilder.FromEvent<int, EventHandler<MtuRequestCallbackEventArgs>, EventHandler>(
-              execute: () => { _gatt.RequestMtu(requestValue); },
+              execute: () => { GattServer.RequestMtu(requestValue); },
               getCompleteHandler: (complete, reject) => ((sender, args) =>
                {
                    if (args.Error != null)
@@ -350,7 +389,7 @@ namespace Plugin.BLE.Android
 
         protected override bool UpdateConnectionIntervalNative(ConnectionInterval interval)
         {
-            if (_gatt == null || _gattCallback == null)
+            if (GattServer == null || _gattCallback == null)
             {
                 Trace.Message("You can't update a connection interval for disconnected devices. Device is {0}", State);
                 return false;
@@ -366,7 +405,7 @@ namespace Plugin.BLE.Android
             {
                 // map to android gattConnectionPriorities
                 // https://developer.android.com/reference/android/bluetooth/BluetoothGatt.html#CONNECTION_PRIORITY_BALANCED
-                return _gatt.RequestConnectionPriority((GattConnectionPriority)(int)interval);
+                return GattServer.RequestConnectionPriority((GattConnectionPriority)(int)interval);
             }
             catch (Exception ex)
             {
