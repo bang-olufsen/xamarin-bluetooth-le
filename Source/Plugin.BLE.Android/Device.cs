@@ -188,7 +188,7 @@ namespace Plugin.BLE.Android
             GattServer?.Close();
             GattServer = null;
 
-            while (_gattList.Any())
+            while (_gattList.Count() > 0)
             {
                 var g = _gattList.Dequeue();
                 if (g != null)
@@ -198,10 +198,14 @@ namespace Plugin.BLE.Android
                         g.Disconnect();
                         g.Close();
                     }
+                    catch (InvalidOperationException invalidOpException)
+                    {
+                        Trace.Message($"Gatt queue is empty while trying to close gatt instances: {invalidOpException.Message}. Queue size: {_gattList.Count()}");
+                        break;
+                    }
                     catch (Exception e)
                     {
-                        Trace.Message(e.Message);
-                        throw;
+                        Trace.Message($"Error while closing gatt instances: {e.Message}");
                     }
                 }
             }
