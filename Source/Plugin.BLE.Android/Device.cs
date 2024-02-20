@@ -68,7 +68,14 @@ namespace Plugin.BLE.Android
                 execute: () => GattServer.DiscoverServices(),
                 getCompleteHandler: (complete, reject) => ((sender, args) =>
                 {
-                    complete(GattServer.Services.Select(service => new Service(service, GattServer, _gattCallback, this)));
+                    if (GattServer.Services is null)
+                    {
+                        complete(new List<IService>());
+                    }
+                    else
+                    {
+                        complete(GattServer.Services.Select(service => new Service(service, GattServer, _gattCallback, this))); // this thows NPE
+                    }
                 }),
                 subscribeComplete: handler => _gattCallback.ServicesDiscovered += handler,
                 unsubscribeComplete: handler => _gattCallback.ServicesDiscovered -= handler,
