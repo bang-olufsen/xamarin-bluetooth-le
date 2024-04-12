@@ -179,7 +179,7 @@ namespace Plugin.BLE.iOS
             });
 
             _centralManager.ConnectPeripheral(device.NativeDevice as CBPeripheral,
-                new PeripheralConnectionOptions(NSDictionary.FromObjectAndKey(NSObject.FromObject(true), NSObject.FromObject("CBConnectPeripheralOptionEnableTransportBridgingKey"))));
+                new PeripheralConnectionOptions(new NSDictionary("CBConnectPeripheralOptionEnableTransportBridgingKey", true))); //NSDictionary.FromObjectAndKey(NSObject.FromObject(true), NSObject.FromObject("CBConnectPeripheralOptionEnableTransportBridgingKey"))
 
             return Task.FromResult(true);
         }
