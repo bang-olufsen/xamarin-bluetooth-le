@@ -5,6 +5,8 @@ namespace Plugin.BLE.Extensions
 {
     public static class BluetoothStateExtension
     {
+
+#if NET6_0_OR_GREATER || MACCATALYST
         public static BluetoothState ToBluetoothState(this CBManagerState state)
         {
             switch (state)
@@ -25,7 +27,7 @@ namespace Plugin.BLE.Extensions
                     return BluetoothState.Unknown;
             }
         }
-
+#else
         public static BluetoothState ToBluetoothState(this CBCentralManagerState state)
         {
             switch (state)
@@ -46,5 +48,6 @@ namespace Plugin.BLE.Extensions
                     return BluetoothState.Unknown;
             }
         }
+#endif
     }
 }

@@ -83,6 +83,7 @@
       <Link>CrossBluetoothLE.cs</Link>
     </Compile>
     <Compile Include="Adapter.cs" />
+    <Compile Include="BleCentralManagerDelegate.cs" />
     <Compile Include="BleImplementation.cs" />
     <Compile Include="Characteristic.cs" />
     <Compile Include="DefaultTrace.cs" />

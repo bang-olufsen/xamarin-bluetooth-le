@@ -8,14 +8,18 @@ namespace Plugin.BLE.Abstractions.Utils
 {
     internal class FakeAdapter : AdapterBase
     {
-        public override IList<IDevice> ConnectedDevices { get; } = new List<IDevice>();
-        public override Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters, CancellationToken cancellationToken)
+        public override Task<IDevice> ConnectToKnownDeviceNativeAsync(Guid deviceGuid, ConnectParameters connectParameters, CancellationToken cancellationToken)
         {
             TraceUnavailability();
             return Task.FromResult<IDevice>(null);
         }
 
-        protected override Task StartScanningForDevicesNativeAsync(Guid[] serviceUuids, bool allowDuplicatesKey, CancellationToken scanCancellationToken)
+        public override Task BondAsync(IDevice device)
+        {
+            return Task.FromResult(0);
+        }
+
+        protected override Task StartScanningForDevicesNativeAsync(ScanFilterOptions scanFilterOptions, bool allowDuplicatesKey, CancellationToken scanCancellationToken)
         {
             TraceUnavailability();
             return Task.FromResult(0);
@@ -42,19 +46,21 @@ namespace Plugin.BLE.Abstractions.Utils
             Trace.Message("Bluetooth LE is not available on this device. Nothing will happen - ever!");
         }
 
-        public override List<IDevice> GetSystemConnectedOrPairedDevices(Guid[] services = null)
+        public override IReadOnlyList<IDevice> GetSystemConnectedOrPairedDevices(Guid[] services = null)
         {
             TraceUnavailability();
             return new List<IDevice>();
         }
 
-        protected override Task<IDevice> ConnectNativeAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken))
+        protected override IReadOnlyList<IDevice> GetBondedDevices()
         {
-            return Task.FromResult(default(IDevice));
+            return null; // not supported
         }
 
-        public override void Set2MPHY(IDevice device)
+        public override IReadOnlyList<IDevice> GetKnownDevicesByIds(Guid[] ids)
         {
+            TraceUnavailability();
+            return new List<IDevice>();
         }
     }
 }

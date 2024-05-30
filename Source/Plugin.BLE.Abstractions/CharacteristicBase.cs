@@ -9,23 +9,56 @@ using Plugin.BLE.Abstractions.EventArgs;
 
 namespace Plugin.BLE.Abstractions
 {
-    public abstract class CharacteristicBase : ICharacteristic
+    /// <summary>
+    /// Base class for platform-specific <c>Characteristic</c> classes.
+    /// </summary>
+    public abstract class CharacteristicBase<TNativeCharacteristic> : ICharacteristic
     {
-        private IList<IDescriptor> _descriptors;
+        private IReadOnlyList<IDescriptor> _descriptors;
         private CharacteristicWriteType _writeType = CharacteristicWriteType.Default;
 
+        /// <summary>
+        /// The native characteristic.
+        /// </summary>
+        protected TNativeCharacteristic NativeCharacteristic { get; }
+
+        /// <summary>
+        /// Event gets raised, when the davice notifies a value change on this characteristic.
+        /// </summary>
         public abstract event EventHandler<CharacteristicUpdatedEventArgs> ValueUpdated;
 
+        /// <summary>
+        /// Id of the characteristic.
+        /// </summary>
         public abstract Guid Id { get; }
+        /// <summary>
+        /// Uuid of the characteristic.
+        /// </summary>
         public abstract string Uuid { get; }
+        /// <summary>
+        /// Gets the last known value of the characteristic.
+        /// </summary>
         public abstract byte[] Value { get; }
-        public string Name => KnownCharacteristics.Lookup(Id).Name;
+        /// <summary>
+        /// Name of the characteristic.
+        /// Returns the name if the <see cref="Id"/> is a id of a standard characteristic.
+        /// </summary>
+        public virtual string Name => KnownCharacteristics.Lookup(Id).Name;
+        /// <summary>
+        /// Properties of the characteristic.
+        /// </summary>
         public abstract CharacteristicPropertyType Properties { get; }
+        /// <summary>
+        /// Returns the parent service. Use this to access the device.
+        /// </summary>
         public IService Service { get; }
 
+        /// <summary>
+        /// Specifies how the <see cref="WriteAsync"/> function writes the value.
+        /// </summary>
         public CharacteristicWriteType WriteType
         {
-            get { return _writeType; }
+            get => _writeType;
             set
             {
                 if (value == CharacteristicWriteType.WithResponse && !Properties.HasFlag(CharacteristicPropertyType.Write) ||
@@ -38,14 +71,26 @@ namespace Plugin.BLE.Abstractions
             }
         }
 
+        /// <summary>
+        /// Indicates wheter the characteristic can be read or not.
+        /// </summary>
         public bool CanRead => Properties.HasFlag(CharacteristicPropertyType.Read);
 
+        /// <summary>
+        /// Indicates wheter the characteristic supports notify or not.
+        /// </summary>
         public bool CanUpdate => Properties.HasFlag(CharacteristicPropertyType.Notify) |
                                  Properties.HasFlag(CharacteristicPropertyType.Indicate);
 
+        /// <summary>
+        /// Indicates wheter the characteristic can be written or not.
+        /// </summary>
         public bool CanWrite => Properties.HasFlag(CharacteristicPropertyType.Write) |
                                 Properties.HasFlag(CharacteristicPropertyType.WriteWithoutResponse);
 
+        /// <summary>
+        /// Gets <see cref="Value"/> as UTF8 encoded string representation.
+        /// </summary>
         public string StringValue
         {
             get
@@ -58,23 +103,35 @@ namespace Plugin.BLE.Abstractions
             }
         }
 
-        protected CharacteristicBase(IService service)
+        /// <summary>
+        /// CharacteristicBase constructor.
+        /// </summary>
+        protected CharacteristicBase(IService service, TNativeCharacteristic nativeCharacteristic)
         {
             Service = service;
+            NativeCharacteristic = nativeCharacteristic;
         }
 
-        public async Task<byte[]> ReadAsync(CancellationToken cancellationToken = default(CancellationToken))
+        /// <summary>
+        /// Reads the characteristic value from the device. The result is also stored inisde the Value property.
+        /// </summary>
+        public async Task<(byte[] data, int resultCode)> ReadAsync(CancellationToken cancellationToken = default)
         {
             if (!CanRead)
             {
                 throw new InvalidOperationException("Characteristic does not support read.");
             }
 
-            Trace.Message($"Characteristic.ReadAsync (id={Id})");
-            return await ReadNativeAsync(cancellationToken);
+            Trace.Message("Characteristic.ReadAsync");
+            return await ReadNativeAsync();
         }
 
-        public async Task<bool> WriteAsync(byte[] data, CancellationToken cancellationToken = default(CancellationToken))
+        /// <summary>
+        /// Sends <paramref name="data"/> as characteristic value to the device.
+        /// </summary>
+        /// <param name="data">Data that should be written.</param>
+        /// <param name="cancellationToken"></param>
+        public async Task<int> WriteAsync(byte[] data, CancellationToken cancellationToken = default)
         {
             if (data == null)
             {
@@ -88,8 +145,8 @@ namespace Plugin.BLE.Abstractions
 
             var writeType = GetWriteType();
 
-            Trace.Message($"Characteristic.WriteAsync (id={Id})");
-            return await WriteNativeAsync(data, writeType, cancellationToken);
+            Trace.Message("Characteristic.WriteAsync");
+            return await WriteNativeAsync(data, writeType);
         }
 
         private CharacteristicWriteType GetWriteType()
@@ -102,44 +159,72 @@ namespace Plugin.BLE.Abstractions
                 CharacteristicWriteType.WithoutResponse;
         }
 
-        public Task StartUpdatesAsync(CancellationToken token = default(CancellationToken))
+        /// <summary>
+        /// Starts listening for notify events on this characteristic.
+        /// </summary>
+        public Task StartUpdatesAsync(CancellationToken cancellationToken = default)
         {
             if (!CanUpdate)
             {
                 throw new InvalidOperationException("Characteristic does not support update.");
             }
 
-            Trace.Message($"Characteristic.StartUpdates (id={Id})");
-            return StartUpdatesNativeAsync(token);
+            Trace.Message("Characteristic.StartUpdates");
+            return StartUpdatesNativeAsync(cancellationToken);
         }
 
-        public Task StopUpdatesAsync()
+        /// <summary>
+        /// Stops listening for notify events on this characteristic.
+        /// </summary>
+        public Task StopUpdatesAsync(CancellationToken cancellationToken = default)
         {
             if (!CanUpdate)
             {
                 throw new InvalidOperationException("Characteristic does not support update.");
             }
 
-            return StopUpdatesNativeAsync();
+            return StopUpdatesNativeAsync(cancellationToken);
         }
 
-        public async Task<IList<IDescriptor>> GetDescriptorsAsync(CancellationToken cancellationToken = default(CancellationToken))
+        /// <summary>
+        /// Gets the descriptors of the characteristic.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        public async Task<IReadOnlyList<IDescriptor>> GetDescriptorsAsync(CancellationToken cancellationToken = default)
         {
-            if (_descriptors == null)
-                _descriptors = await GetDescriptorsNativeAsync();
-            return _descriptors;
+            return _descriptors ?? (_descriptors = await GetDescriptorsNativeAsync());
         }
 
-        public async Task<IDescriptor> GetDescriptorAsync(Guid id, CancellationToken cancellationToken = default(CancellationToken))
+        /// <summary>
+        /// Gets the first descriptor with the Id <paramref name="id"/>. 
+        /// </summary>
+        /// <param name="id">The id of the searched descriptor.</param>
+        /// <param name="cancellationToken"></param>
+        public async Task<IDescriptor> GetDescriptorAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            var descriptors = await GetDescriptorsAsync().ConfigureAwait(false);
+            var descriptors = await GetDescriptorsAsync(cancellationToken).ConfigureAwait(false);
             return descriptors.FirstOrDefault(d => d.Id == id);
         }
 
-        protected abstract Task<IList<IDescriptor>> GetDescriptorsNativeAsync();
-        protected abstract Task<byte[]> ReadNativeAsync(CancellationToken token);
-        protected abstract Task<bool> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType, CancellationToken token = default(CancellationToken));
-        protected abstract Task StartUpdatesNativeAsync(CancellationToken token = default(CancellationToken));
-        protected abstract Task StopUpdatesNativeAsync();
+        /// <summary>
+        /// Native implementation of <c>GetDescriptorsAsync</c>.
+        /// </summary>
+        protected abstract Task<IReadOnlyList<IDescriptor>> GetDescriptorsNativeAsync();
+        /// <summary>
+        /// Native implementation of <c>ReadAsync</c>.
+        /// </summary>
+        protected abstract Task<(byte[] data, int resultCode)> ReadNativeAsync();
+        /// <summary>
+        /// Native implementation of <c>WriteAsync</c>.
+        /// </summary>
+        protected abstract Task<int> WriteNativeAsync(byte[] data, CharacteristicWriteType writeType);
+        /// <summary>
+        /// Native implementation of <c>StartUpdatesAsync</c>.
+        /// </summary>
+        protected abstract Task StartUpdatesNativeAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Native implementation of <c>StopUpdatesAsync</c>.
+        /// </summary>
+        protected abstract Task StopUpdatesNativeAsync(CancellationToken cancellationToken = default);
     }
 }

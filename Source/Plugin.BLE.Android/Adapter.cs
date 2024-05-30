@@ -6,15 +6,16 @@ using System.Threading.Tasks;
 using Android.App;
 using Android.Bluetooth;
 using Android.Bluetooth.LE;
+using Android.Content;
 using Android.OS;
 using Java.Util;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
+using Plugin.BLE.Android.Extensions;
+using Plugin.BLE.BroadcastReceivers;
 using Plugin.BLE.Extensions;
 using Object = Java.Lang.Object;
 using Trace = Plugin.BLE.Abstractions.Trace;
-using Plugin.BLE.Abstractions.EventArgs;
-using BluetoothPhy = Android.Bluetooth.BluetoothPhy;
 
 namespace Plugin.BLE.Android
 {
@@ -25,35 +26,40 @@ namespace Plugin.BLE.Android
         private readonly Api18BleScanCallback _api18ScanCallback;
         private readonly Api21BleScanCallback _api21ScanCallback;
 
-        public override IList<IDevice> ConnectedDevices => ConnectedDeviceRegistry.Values.ToList();
-
-        /// <summary>
-        /// Used to store all connected devices
-        /// </summary>
-        public Dictionary<string, IDevice> ConnectedDeviceRegistry { get; }
-
-        /// <summary>
-        ///  Thread safety
-        /// </summary>
-        public object ConnectedDeviceRegistryLock { get; } = new object();
+        private readonly Dictionary<string, TaskCompletionSource<bool>> _bondingTcsForAddress = new();
 
         public Adapter(BluetoothManager bluetoothManager)
         {
             _bluetoothManager = bluetoothManager;
             _bluetoothAdapter = bluetoothManager.Adapter;
 
-            ConnectedDeviceRegistry = new Dictionary<string, IDevice>();
+            //bonding
+            var bondStatusBroadcastReceiver = new BondStatusBroadcastReceiver(this);
+            Application.Context.RegisterReceiver(bondStatusBroadcastReceiver,
+                new IntentFilter(BluetoothDevice.ActionBondStateChanged));
 
-            // TODO: bonding
-            //var bondStatusBroadcastReceiver = new BondStatusBroadcastReceiver();
-            //Application.Context.RegisterReceiver(bondStatusBroadcastReceiver,
-            //    new IntentFilter(BluetoothDevice.ActionBondStateChanged));
+            //forward events from broadcast receiver
+            bondStatusBroadcastReceiver.BondStateChanged += (s, args) =>
+            {
+                HandleDeviceBondStateChanged(args);
 
-            ////forward events from broadcast receiver
-            //bondStatusBroadcastReceiver.BondStateChanged += (s, args) =>
-            //{
-            //    //DeviceBondStateChanged(this, args);
-            //};
+                if (!_bondingTcsForAddress.TryGetValue(args.Address, out var tcs))
+                {
+                    return;
+                }
+
+                if (args.State == DeviceBondState.Bonding)
+                {
+                    return;
+                }
+
+                if (args.State == DeviceBondState.Bonded)
+                {
+                    tcs.TrySetResult(true);
+                }
+
+                tcs.TrySetException(new Exception("Bonding failed."));
+            };
 
             if (Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop)
             {
@@ -65,18 +71,52 @@ namespace Plugin.BLE.Android
             }
         }
 
-        protected override Task StartScanningForDevicesNativeAsync(Guid[] serviceUuids, bool allowDuplicatesKey, CancellationToken scanCancellationToken)
+        public override Task BondAsync(IDevice device)
         {
-            // clear out the list
-            DiscoveredDevices.Clear();
+            if (device == null)
+            {
+	            throw new ArgumentNullException(nameof(device));
+            }
 
+            if (!(device.NativeDevice is BluetoothDevice nativeDevice))
+            {
+	            throw new ArgumentException("Invalid device type");
+            }
+
+            if (nativeDevice.BondState == Bond.Bonded)
+            {
+	            return Task.CompletedTask;
+            }
+            
+            var deviceAddress = nativeDevice.Address!;
+            if (_bondingTcsForAddress.TryGetValue(deviceAddress, out var tcs))
+            {
+	            tcs.TrySetException(new Exception("Bonding failed on old try."));
+	            _bondingTcsForAddress.Remove(deviceAddress);
+            }
+            
+            var taskCompletionSource = new TaskCompletionSource<bool>();
+            
+            _bondingTcsForAddress.Add(nativeDevice.Address!, taskCompletionSource);
+
+            if (!nativeDevice.CreateBond())
+            {
+                _bondingTcsForAddress.Remove(nativeDevice.Address);
+                throw new Exception("Bonding failed");
+            }
+
+            return taskCompletionSource.Task;
+        }
+
+        protected override Task StartScanningForDevicesNativeAsync(ScanFilterOptions scanFilterOptions, bool allowDuplicatesKey, CancellationToken scanCancellationToken)
+        {
             if (Build.VERSION.SdkInt < BuildVersionCodes.Lollipop)
             {
-                StartScanningOld(serviceUuids);
+                StartScanningOld(scanFilterOptions?.ServiceUuids);
             }
             else
             {
-                StartScanningNew(serviceUuids);
+                StartScanningNew(scanFilterOptions);
             }
 
             return Task.FromResult(true);
@@ -96,35 +136,133 @@ namespace Plugin.BLE.Android
 #pragma warning restore 618
         }
 
-        private void StartScanningNew(Guid[] serviceUuids)
+        private void StartScanningNew(ScanFilterOptions scanFilterOptions)
         {
-            var hasFilter = serviceUuids?.Any() ?? false;
+            var hasFilter = scanFilterOptions?.HasFilter == true;
             List<ScanFilter> scanFilters = null;
 
             if (hasFilter)
             {
                 scanFilters = new List<ScanFilter>();
-                foreach (var serviceUuid in serviceUuids)
+                if (scanFilterOptions.HasServiceIds)
                 {
-                    var sfb = new ScanFilter.Builder();
-                    sfb.SetServiceUuid(ParcelUuid.FromString(serviceUuid.ToString()));
-                    scanFilters.Add(sfb.Build());
+                    foreach (var serviceUuid in scanFilterOptions.ServiceUuids)
+                    {
+                        var sfb = new ScanFilter.Builder();
+                        sfb.SetServiceUuid(ParcelUuid.FromString(serviceUuid.ToString()));
+                        scanFilters.Add(sfb.Build());
+                    }
+                }
+                if (scanFilterOptions.HasServiceData)
+                {
+                    foreach (var serviceDataFilter in scanFilterOptions.ServiceDataFilters)
+                    {
+                        var sfb = new ScanFilter.Builder();
+                        if (serviceDataFilter.ServiceDataMask == null)
+                            sfb.SetServiceData(ParcelUuid.FromString(serviceDataFilter.ServiceDataUuid.ToString()), serviceDataFilter.ServiceData);
+                        else
+                            sfb.SetServiceData(ParcelUuid.FromString(serviceDataFilter.ServiceDataUuid.ToString()), serviceDataFilter.ServiceData, serviceDataFilter.ServiceDataMask);
+                        scanFilters.Add(sfb.Build());
+                    }
+                }
+                if (scanFilterOptions.HasManufacturerIds)
+                {
+                    foreach (var manufacturerDataFilter in scanFilterOptions.ManufacturerDataFilters)
+                    {
+                        var sfb = new ScanFilter.Builder();
+                        if (manufacturerDataFilter.ManufacturerDataMask != null)
+                            sfb.SetManufacturerData(manufacturerDataFilter.ManufacturerId, manufacturerDataFilter.ManufacturerData);
+                        else
+                            sfb.SetManufacturerData(manufacturerDataFilter.ManufacturerId, manufacturerDataFilter.ManufacturerData, manufacturerDataFilter.ManufacturerDataMask);
+                        scanFilters.Add(sfb.Build());
+                    }
+                }
+                if (scanFilterOptions.HasDeviceAddresses)
+                {
+                    foreach (var deviceAddress in scanFilterOptions.DeviceAddresses)
+                    {
+                        if (BluetoothAdapter.CheckBluetoothAddress(deviceAddress))
+                        {
+                            var sfb = new ScanFilter.Builder();
+                            sfb.SetDeviceAddress(deviceAddress);
+                            scanFilters.Add(sfb.Build());
+                        }
+                        else
+                        {
+                            Trace.Message($"Device address {deviceAddress} is invalid. The correct format is \"01:02:03:AB:CD:EF\"");
+                        }
+
+                    }
+                }
+                if (scanFilterOptions.HasDeviceNames)
+                {
+                    foreach (var deviceName in scanFilterOptions.DeviceNames)
+                    {
+                        var sfb = new ScanFilter.Builder();
+                        sfb.SetDeviceName(deviceName);
+                        scanFilters.Add(sfb.Build());
+                    }
+                }
+
+            }
+
+            var ssb = new ScanSettings.Builder();
+            ssb.SetScanMode(ScanMode.ToNative());
+
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(23))
+#else
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+#endif
+            {
+                // set the match mode on Android 6 and above
+                ssb.SetMatchMode(ScanMatchMode.ToNative());
+
+                // If set to agressive, reduce the number of adverts needed before raising the DeviceFound callback
+                if (ScanMatchMode.ToNative() == BluetoothScanMatchMode.Aggressive)
+                {
+                    // Be more agressive when seeking adverts
+                    ssb.SetNumOfMatches((int)BluetoothScanMatchNumber.OneAdvertisement);
+                    Trace.Message("Using ScanMatchMode Agressive");
                 }
             }
 
-            var ssb = new ScanSettings.Builder()
-                .SetScanMode(ScanMode.ToNative())
-                .SetCallbackType(ScanCallbackType.AllMatches)
-                .SetMatchMode(BluetoothScanMatchMode.Aggressive)
-                .SetNumOfMatches((int)BluetoothScanMatchNumber.OneAdvertisement)
-                .SetReportDelay(0);
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+#else
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
+            {
+                // enable Bluetooth 5 Advertisement Extensions on Android 8.0 and above
+                ssb.SetLegacy(false);
+            }
+            //ssb.SetCallbackType(ScanCallbackType.AllMatches);
 
             if (_bluetoothAdapter.BluetoothLeScanner != null)
             {
                 Trace.Message($"Adapter >=21: Starting a scan for devices. ScanMode: {ScanMode}");
                 if (hasFilter)
                 {
-                    Trace.Message($"ScanFilters: {string.Join(", ", serviceUuids)}");
+                    if (scanFilterOptions.HasServiceIds)
+                    {
+                        Trace.Message($"Service UUID Scan Filters: {string.Join(", ", scanFilterOptions.ServiceUuids)}");
+                    }
+                    if (scanFilterOptions.HasServiceData)
+                    {
+                        Trace.Message($"Service Data Scan Filters: {string.Join(", ", scanFilterOptions.ServiceDataFilters.ToString())}");
+                    }
+                    if (scanFilterOptions.HasManufacturerIds)
+                    {
+                        Trace.Message($"Manufacturer Id Scan Filters: {string.Join(", ", scanFilterOptions.ManufacturerDataFilters.ToString())}");
+                    }
+                    if (scanFilterOptions.HasDeviceAddresses)
+                    {
+                        Trace.Message($"Device Address Scan Filters: {string.Join(", ", scanFilterOptions.DeviceAddresses)}");
+                    }
+                    if (scanFilterOptions.HasDeviceNames)
+                    {
+                        Trace.Message($"Device Name Scan Filters: {string.Join(", ", scanFilterOptions.DeviceNames)}");
+                    }
                 }
                 _bluetoothAdapter.BluetoothLeScanner.StartScan(scanFilters, ssb.Build(), _api21ScanCallback);
             }
@@ -153,7 +291,7 @@ namespace Plugin.BLE.Android
         protected override Task ConnectToDeviceNativeAsync(IDevice device, ConnectParameters connectParameters,
             CancellationToken cancellationToken)
         {
-            ((Device)device).Connect(connectParameters);
+            ((Device)device).Connect(connectParameters, cancellationToken);
             return Task.CompletedTask;
         }
 
@@ -163,35 +301,21 @@ namespace Plugin.BLE.Android
             ((Device)device).Disconnect();
         }
 
-        public override async Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters = default(ConnectParameters), CancellationToken cancellationToken = default(CancellationToken))
+        public override async Task<IDevice> ConnectToKnownDeviceNativeAsync(Guid deviceGuid, ConnectParameters connectParameters = default(ConnectParameters), CancellationToken cancellationToken = default(CancellationToken))
         {
             var macBytes = deviceGuid.ToByteArray().Skip(10).Take(6).ToArray();
             var nativeDevice = _bluetoothAdapter.GetRemoteDevice(macBytes);
-
-            var device = new Device(this, nativeDevice, null, 0, new byte[] { });
+            if (nativeDevice == null)
+                throw new Abstractions.Exceptions.DeviceConnectionException(deviceGuid,"", $"[Adapter] Device {deviceGuid} not found.");
+            if (!nativeDevice.SupportsBLE())
+                throw new Abstractions.Exceptions.DeviceConnectionException(deviceGuid,"", $"[Adapter] Device {deviceGuid} does not support BLE.");
+            var device = new Device(this, nativeDevice, null);
 
             await ConnectToDeviceAsync(device, connectParameters, cancellationToken);
-
             return device;
         }
 
-        public override void Set2MPHY(IDevice device)
-        {
-            if (Build.VERSION.SdkInt > BuildVersionCodes.O)
-            {
-                var twoMphySupport = _bluetoothAdapter?.IsLe2MPhySupported;
-                if (twoMphySupport == true)
-                {
-                    var server = (device as Device).GattServer;
-                    server?.SetPreferredPhy(
-                        BluetoothPhy.Le2mMask,
-                        BluetoothPhy.Le2mMask,
-                        BluetoothPhyOption.NoPreferred);
-                }
-            }
-        }
-
-        public override List<IDevice> GetSystemConnectedOrPairedDevices(Guid[] services = null)
+        public override IReadOnlyList<IDevice> GetSystemConnectedOrPairedDevices(Guid[] services = null)
         {
             if (services != null)
             {
@@ -199,68 +323,58 @@ namespace Plugin.BLE.Android
             }
 
             //add dualMode type too as they are BLE too ;)
-            var connectedDevices = _bluetoothManager.GetConnectedDevices(ProfileType.Gatt).Where(d => d.Type == BluetoothDeviceType.Le || d.Type == BluetoothDeviceType.Dual);
+            var connectedDevices = _bluetoothManager.GetConnectedDevices(ProfileType.Gatt).Where(d => d.SupportsBLE());
 
-            var bondedDevices = _bluetoothAdapter.BondedDevices.Where(d => d.Type == BluetoothDeviceType.Le || d.Type == BluetoothDeviceType.Dual);
+            var bondedDevices = _bluetoothAdapter.BondedDevices.Where(d => d.SupportsBLE());
 
-            return connectedDevices.Union(bondedDevices, new DeviceComparer()).Select(d => new Device(this, d, null, 0)).Cast<IDevice>().ToList();
+            return connectedDevices.Union(bondedDevices, new DeviceComparer()).Select(d => new Device(this, d, null)).Cast<IDevice>().ToList();
         }
 
-        protected override async Task<IDevice> ConnectNativeAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken))
+        public override IReadOnlyList<IDevice> GetKnownDevicesByIds(Guid[] ids)
         {
-            if (uuid == Guid.Empty)
+            var devices = GetSystemConnectedOrPairedDevices();
+            return devices.Where(item => ids.Contains(item.Id)).ToList();
+        }
+
+        protected override IReadOnlyList<IDevice> GetBondedDevices()
+        {
+            var bondedDevices = _bluetoothAdapter.BondedDevices.Where(d => d.SupportsBLE());
+
+            return bondedDevices.Select(d => new Device(this, d, null, 0)).Cast<IDevice>().ToList();
+        }
+
+        public override bool SupportsExtendedAdvertising()
+        {
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+#else
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
             {
-                var stopToken = new CancellationTokenSource();
-                var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(stopToken.Token, cancellationToken).Token;
-                var taskCompletionSource = new TaskCompletionSource<IDevice>();
-                EventHandler<DeviceEventArgs> handler = (sender, args) =>
-                {
-                    var device = args.Device;
-
-                    if (deviceFilter(device) == false)
-                    {
-                        return;
-                    }
-
-                    if (taskCompletionSource.TrySetResult(device))
-                    {
-                        stopToken.Cancel();
-                    }
-                };
-
-                try
-                {
-                    DeviceDiscovered += handler;
-                    async Task<IDevice> WaitAsync()
-                    {
-                        await Task.Delay(ScanTimeout);
-                        return null;
-                    }
-
-                    var scanTask = StartScanningForDevicesAsync(deviceFilter: deviceFilter, cancellationToken: linkedToken);
-                    var device = await await Task.WhenAny(taskCompletionSource.Task, WaitAsync());
-
-                    //Stop scanning when we timeout on waiting for an result
-                    stopToken.Cancel();
-
-                    // make sure to wait for the scan to complete before connecting to avoid doing multiple things at once. If a
-                    // device was matched, then it should already have completed through the cancellation, otherwise it is
-                    // controlled by the scan timeout
-                    await scanTask;
-
-                    await ConnectToDeviceAsync(device, new ConnectParameters(false, true), cancellationToken);
-                    return device;
-                }
-                finally
-                {
-                    DeviceDiscovered -= handler;
-                }
+                return _bluetoothAdapter.IsLeExtendedAdvertisingSupported;
             }
             else
             {
-                return await ConnectToKnownDeviceAsync(uuid, new ConnectParameters(false, true), cancellationToken);
+                return false;
             }
         }
+
+        public override bool SupportsCodedPHY()
+        {
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+#else
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
+            {
+                return _bluetoothAdapter.IsLeCodedPhySupported;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
 
         private class DeviceComparer : IEqualityComparer<BluetoothDevice>
         {
@@ -289,10 +403,9 @@ namespace Plugin.BLE.Android
             {
                 Trace.Message("Adapter.LeScanCallback: " + bleDevice.Name);
 
-                _adapter.HandleDiscoveredDevice(new Device(_adapter, bleDevice, null, rssi, scanRecord));
+                _adapter.HandleDiscoveredDevice(new Device(_adapter, bleDevice, null, rssi, scanRecord)); // No IsConnectable!
             }
         }
-
 
         public class Api21BleScanCallback : ScanCallback
         {
@@ -312,20 +425,58 @@ namespace Plugin.BLE.Android
             {
                 base.OnScanResult(callbackType, result);
 
-                try
+                /* Might want to transition to parsing the API21+ ScanResult, but sort of a pain for now 
+                List<AdvertisementRecord> records = new List<AdvertisementRecord>();
+                records.Add(new AdvertisementRecord(AdvertisementRecordType.Flags, BitConverter.GetBytes(result.ScanRecord.AdvertiseFlags)));
+                if (!string.IsNullOrEmpty(result.ScanRecord.DeviceName))
                 {
-                    var device = new Device(_adapter, result.Device, null, result.Rssi, result.ScanRecord.GetBytes());
-                    _adapter.HandleDiscoveredDevice(device);
+                    records.Add(new AdvertisementRecord(AdvertisementRecordType.CompleteLocalName, Encoding.UTF8.GetBytes(result.ScanRecord.DeviceName)));
                 }
-                catch (ArgumentException)
+                for (int i = 0; i < result.ScanRecord.ManufacturerSpecificData.Size(); i++)
                 {
-                    Trace.Message("Failed to parse scan result and create device");
-                }
-                catch (Exception e)
-                {
-                    Trace.Message("Unkown error when creating device based on scan result. Message: " + e.Message);
+                    int key = result.ScanRecord.ManufacturerSpecificData.KeyAt(i);
+                    var arr = result.ScanRecord.GetManufacturerSpecificData(key);
+                    byte[] data = new byte[arr.Length + 2];
+                    BitConverter.GetBytes((ushort)key).CopyTo(data,0);
+                    arr.CopyTo(data, 2);
+                    records.Add(new AdvertisementRecord(AdvertisementRecordType.ManufacturerSpecificData, data));
                 }
 
+                foreach(var uuid in result.ScanRecord.ServiceUuids)
+                {
+                    records.Add(new AdvertisementRecord(AdvertisementRecordType.UuidsIncomplete128Bit, uuid.Uuid.));
+                }
+
+                foreach(var key in result.ScanRecord.ServiceData.Keys)
+                {
+                    records.Add(new AdvertisementRecord(AdvertisementRecordType.ServiceData, result.ScanRecord.ServiceData));
+                }*/
+
+                var device = new Device(_adapter, result.Device, null, result.Rssi, result.ScanRecord.GetBytes(),
+#if NET6_0_OR_GREATER
+                    OperatingSystem.IsAndroidVersionAtLeast(26)
+#else
+                    (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+#endif
+                    ? result.IsConnectable : true
+                );
+
+                //Device device;
+                //if (result.ScanRecord.ManufacturerSpecificData.Size() > 0)
+                //{
+                //    int key = result.ScanRecord.ManufacturerSpecificData.KeyAt(0);
+                //    byte[] mdata = result.ScanRecord.GetManufacturerSpecificData(key);
+                //    byte[] mdataWithKey = new byte[mdata.Length + 2];
+                //    BitConverter.GetBytes((ushort)key).CopyTo(mdataWithKey, 0);
+                //    mdata.CopyTo(mdataWithKey, 2);
+                //    device = new Device(result.Device, null, null, result.Rssi, mdataWithKey);
+                //}
+                //else
+                //{
+                //    device = new Device(result.Device, null, null, result.Rssi, new byte[0]);
+                //}
+
+                _adapter.HandleDiscoveredDevice(device);
             }
         }
     }

@@ -1,145 +1,213 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Android.App;
+using Android.OS;
 using Android.Bluetooth;
 using Android.Content;
-using Android.OS;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Abstractions.Utils;
 using Plugin.BLE.Android.CallbackEventArgs;
 using Trace = Plugin.BLE.Abstractions.Trace;
+using System.Threading;
+using Java.Util;
+using Plugin.BLE.Extensions;
+using Plugin.BLE.Abstractions.Extensions;
 
 namespace Plugin.BLE.Android
 {
-    public class Device : DeviceBase
+    public class Device : DeviceBase<BluetoothDevice>
     {
-        public BluetoothDevice BluetoothDevice { get; private set; }
-
         /// <summary>
         /// we have to keep a reference to this because Android's api is weird and requires
         /// the GattServer in order to do nearly anything, including enumerating services
         /// </summary>
-        internal BluetoothGatt GattServer { get; private set; }
-
-        internal Queue<BluetoothGatt> _gattList = new Queue<BluetoothGatt>();
+        internal BluetoothGatt _gatt;
 
         /// <summary>
-        /// we also track this because of gogole's weird API. the gatt callback is where
+        /// we also track this because of google's weird API. the gatt callback is where
         /// we'll get notified when services are enumerated
         /// </summary>
         private readonly GattCallback _gattCallback;
 
-        private static volatile Handler handler;
+        /// <summary>
+        /// the registration must be disposed to avoid disconnecting after a connection
+        /// </summary>
+        private CancellationTokenRegistration _connectCancellationTokenRegistration;
+        
+        private TaskCompletionSource<bool> _bondCompleteTaskCompletionSource;
 
-        public Device(Adapter adapter, BluetoothDevice nativeDevice, BluetoothGatt gatt, int rssi, byte[] advertisementData = null) : base(adapter)
+        /// <summary>
+        /// the connect parameters used when connecting to this device
+        /// </summary>
+        public ConnectParameters ConnectParameters { get; private set; }
+
+        public Device(Adapter adapter, BluetoothDevice nativeDevice, BluetoothGatt gatt, int rssi = 0, byte[] advertisementData = null, bool isConnectable = true)
+            : base(adapter, nativeDevice)
         {
             Update(nativeDevice, gatt);
             Rssi = rssi;
             AdvertisementRecords = ParseScanRecord(advertisementData);
+            IsConnectable = isConnectable;
             _gattCallback = new GattCallback(adapter, this);
         }
 
         public void Update(BluetoothDevice nativeDevice, BluetoothGatt gatt)
         {
-            BluetoothDevice = nativeDevice;
-            GattServer = gatt;
+            _connectCancellationTokenRegistration.Dispose();
+            _connectCancellationTokenRegistration = new CancellationTokenRegistration();
 
-            _gattList.Enqueue(gatt);
+            NativeDevice = nativeDevice;
+            _gatt = gatt;
+
 
             Id = ParseDeviceId();
-            Name = BluetoothDevice.Name;
+            Name = NativeDevice.Name;
         }
 
-        public override object NativeDevice => BluetoothDevice;
         internal bool IsOperationRequested { get; set; }
 
-        protected override async Task<IEnumerable<IService>> GetServicesNativeAsync()
+        protected override async Task<IReadOnlyList<IService>> GetServicesNativeAsync()
         {
-            if (_gattCallback == null || GattServer == null)
+            if (_gattCallback == null || _gatt == null)
             {
-                return Enumerable.Empty<IService>();
+                return new List<IService>();
             }
 
-            return await TaskBuilder.FromEvent<IEnumerable<IService>, EventHandler<ServicesDiscoveredCallbackEventArgs>, EventHandler>(
-                execute: () => GattServer.DiscoverServices(),
-                getCompleteHandler: (complete, reject) => ((sender, args) =>
-                {
-                    complete(GattServer.Services.Select(service => new Service(service, GattServer, _gattCallback, this)));
-                }),
-                subscribeComplete: handler => _gattCallback.ServicesDiscovered += handler,
-                unsubscribeComplete: handler => _gattCallback.ServicesDiscovered -= handler,
-                getRejectHandler: reject => ((sender, args) =>
-                {
-                    reject(new Exception($"Device {Name} disconnected while fetching services."));
-                }),
-                subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
-                unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler);
+            // _gatt.Services is already populated if device service discovery was already done
+            if (_gatt.Services.Any())
+            {
+                return _gatt.Services.Select(service => new Service(service, _gatt, _gattCallback, this)).ToList();
+            }
+
+            return await DiscoverServicesInternal();
         }
 
-        public void Connect(ConnectParameters connectParameters)
+        protected override async Task<IService> GetServiceNativeAsync(Guid id)
+        {
+            if (_gattCallback == null || _gatt == null)
+            {
+                return null;
+            }
+
+            var uuid = UUID.FromString(id.ToString("d"));
+
+            // _gatt.GetService will directly return if device service discovery was already done
+            var nativeService = _gatt.GetService(uuid);
+            if (nativeService != null)
+            {
+                return new Service(nativeService, _gatt, _gattCallback, this);
+            }
+
+            var services = await DiscoverServicesInternal();
+            return services?.FirstOrDefault(service => service.Id == id);
+        }
+
+        private async Task<IReadOnlyList<IService>> DiscoverServicesInternal()
+        {
+	        if (_gatt == null)
+	        {
+		        Trace.Message("[Warning]: Can't discover services {0}. Gatt is null.", Name);
+	        }
+	        
+            return await TaskBuilder
+                .FromEvent<IReadOnlyList<IService>, EventHandler<ServicesDiscoveredCallbackEventArgs>, EventHandler>(
+                    execute: () =>
+                    {
+                        if (!_gatt.DiscoverServices())
+                        {
+                            throw new Exception("Could not start service discovery");
+                        }
+                    },
+                    getCompleteHandler: (complete, reject) => ((sender, args) =>
+                    {
+	                    if (_gatt.Services == null)
+	                    {
+		                    complete(new List<IService>());
+	                    }
+	                    else
+	                    {
+		                    complete(_gatt.Services.Select(service => new Service(service, _gatt, _gattCallback, this)).ToList());
+	                    }
+                    }),
+                    subscribeComplete: handler => _gattCallback.ServicesDiscovered += handler,
+                    unsubscribeComplete: handler => _gattCallback.ServicesDiscovered -= handler,
+                    getRejectHandler: reject => ((sender, args) =>
+                    {
+                        reject(new Exception($"Device {Name} disconnected while fetching services."));
+                    }),
+                    subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
+                    unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler);
+        }
+
+        public void Connect(ConnectParameters connectParameters, CancellationToken cancellationToken)
         {
             IsOperationRequested = true;
+            ConnectParameters = connectParameters;
 
             if (connectParameters.ForceBleTransport)
             {
-                ConnectToGattForceBleTransportAPI(connectParameters.AutoConnect);
+                ConnectToGattForceBleTransportAPI(connectParameters.AutoConnect, cancellationToken);
             }
             else
             {
-                /*_gatt = */
-                if (handler?.Looper != Looper.MainLooper)
-                {
-                    handler = new Handler(Looper.MainLooper);
-                }
-
-                handler.Post(() =>
-                {
-                    GattServer = BluetoothDevice.ConnectGatt(Application.Context, connectParameters.AutoConnect, _gattCallback);
-                });
+                var connectGatt = NativeDevice.ConnectGatt(Application.Context, connectParameters.AutoConnect, _gattCallback);
+                _connectCancellationTokenRegistration.Dispose();
+                _connectCancellationTokenRegistration = cancellationToken.Register(() => DisconnectAndClose(connectGatt));
             }
         }
 
-        private void ConnectToGattForceBleTransportAPI(bool autoconnect)
+        public Task BondAsync()
+        {
+            _bondCompleteTaskCompletionSource = new TaskCompletionSource<bool>();
+            NativeDevice.CreateBond();
+            return _bondCompleteTaskCompletionSource.Task;
+        }
+
+        private void ConnectToGattForceBleTransportAPI(bool autoconnect, CancellationToken cancellationToken)
         {
             //This parameter is present from API 18 but only public from API 23
             //So reflection is used before API 23
-            if (Build.VERSION.SdkInt < BuildVersionCodes.Lollipop)
+#if NET6_0_OR_GREATER
+            if (OperatingSystem.IsAndroidVersionAtLeast(23))
+#else
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+#endif
             {
-                //no transport mode before lollipop, it will probably not work... gattCallBackError 133 again alas
-                BluetoothDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback);
+                var connectGatt = NativeDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback, BluetoothTransports.Le);
+                _connectCancellationTokenRegistration.Dispose();
+                _connectCancellationTokenRegistration = cancellationToken.Register(() => DisconnectAndClose(connectGatt));
             }
-            else if (Build.VERSION.SdkInt < BuildVersionCodes.M)
+#if NET6_0_OR_GREATER
+            else if (OperatingSystem.IsAndroidVersionAtLeast(21))
+#else
+            else if (Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop)
+#endif
             {
-                var m = BluetoothDevice.Class.GetDeclaredMethod("connectGatt", new Java.Lang.Class[] {
+                var m = NativeDevice.Class.GetDeclaredMethod("connectGatt", new Java.Lang.Class[] {
                                 Java.Lang.Class.FromType(typeof(Context)),
                                 Java.Lang.Boolean.Type,
                                 Java.Lang.Class.FromType(typeof(BluetoothGattCallback)),
                                 Java.Lang.Integer.Type});
 
-                var transport = BluetoothDevice.Class.GetDeclaredField("TRANSPORT_LE").GetInt(null); // LE = 2, BREDR = 1, AUTO = 0
-                m.Invoke(BluetoothDevice, Application.Context, false, _gattCallback, transport);
+                var transport = NativeDevice.Class.GetDeclaredField("TRANSPORT_LE").GetInt(null); // LE = 2, BREDR = 1, AUTO = 0
+                m.Invoke(NativeDevice, Application.Context, false, _gattCallback, transport);
             }
             else
             {
-                if (handler?.Looper != Looper.MainLooper)
-                {
-                    handler = new Handler(Looper.MainLooper);
-                }
-
-                handler.Post(() =>
-                {
-                    GattServer = BluetoothDevice.ConnectGatt(
-                        Application.Context,
-                        autoconnect,
-                        _gattCallback,
-                        BluetoothTransports.Le);
-                });
+                //no transport mode before lollipop, it will probably not work... gattCallBackError 133 again alas
+                var connectGatt = NativeDevice.ConnectGatt(Application.Context, autoconnect, _gattCallback);
+                _connectCancellationTokenRegistration.Dispose();
+                _connectCancellationTokenRegistration = cancellationToken.Register(() => DisconnectAndClose(connectGatt));
             }
+        }
 
+        private void DisconnectAndClose(BluetoothGatt gatt)
+        {
+            gatt?.Disconnect();
+            gatt?.Close();
         }
 
         /// <summary>
@@ -148,29 +216,13 @@ namespace Plugin.BLE.Android
         /// </summary>
         public void Disconnect()
         {
-            if (GattServer != null)
+            if (_gatt != null)
             {
                 IsOperationRequested = true;
 
-                var resetEvent = new ManualResetEvent(false);
-                EventHandler disconnectWaitHandler = (se, ev) =>
-                {
-                    resetEvent.Set();
-                };
+                ClearServices();
 
-                try
-                {
-                    _gattCallback.OnDisconnected += disconnectWaitHandler;
-                    GattServer.Disconnect();
-
-                    // Wait closing untill the disconnect event has happend - otherwise it might never be triggered
-                    resetEvent.WaitOne(TimeSpan.FromSeconds(2));
-                    CloseGatt();
-                }
-                finally
-                {
-                    _gattCallback.OnDisconnected -= disconnectWaitHandler;
-                }
+                _gatt.Disconnect();
             }
             else
             {
@@ -184,27 +236,8 @@ namespace Plugin.BLE.Android
         /// </summary>
         public void CloseGatt()
         {
-            GattServer?.Disconnect();
-            GattServer?.Close();
-            GattServer = null;
-
-            while (_gattList.Any())
-            {
-                var g = _gattList.Dequeue();
-                if (g != null)
-                {
-                    try
-                    {
-                        g.Disconnect();
-                        g.Close();
-                    }
-                    catch (Exception e)
-                    {
-                        Trace.Message(e.Message);
-                        throw;
-                    }
-                }
-            }
+            _gatt?.Close();
+            _gatt = null;
 
             // ClossGatt might will get called on signal loss without Disconnect being called we have to make sure we clear the services
             // Clear services & characteristics otherwise we will get gatt operation return FALSE when connecting to the same IDevice instace at a later time
@@ -214,14 +247,14 @@ namespace Plugin.BLE.Android
         protected override DeviceState GetState()
         {
             var manager = (BluetoothManager)Application.Context.GetSystemService(Context.BluetoothService);
-            var state = manager.GetConnectionState(BluetoothDevice, ProfileType.Gatt);
+            var state = manager.GetConnectionState(NativeDevice, ProfileType.Gatt);
 
             switch (state)
             {
                 case ProfileState.Connected:
                     // if the device does not have a gatt instance we can't use it in the app, so we need to explicitly be able to connect it
                     // even if the profile state is connected
-                    return GattServer != null ? DeviceState.Connected : DeviceState.Limited;
+                    return _gatt != null ? DeviceState.Connected : DeviceState.Limited;
 
                 case ProfileState.Connecting:
                     return DeviceState.Connecting;
@@ -236,7 +269,7 @@ namespace Plugin.BLE.Android
         private Guid ParseDeviceId()
         {
             var deviceGuid = new byte[16];
-            var macWithoutColons = BluetoothDevice.Address.Replace(":", "");
+            var macWithoutColons = NativeDevice.Address.Replace(":", "");
             var macBytes = Enumerable.Range(0, macWithoutColons.Length)
                 .Where(x => x % 2 == 0)
                 .Select(x => Convert.ToByte(macWithoutColons.Substring(x, 2), 16))
@@ -245,85 +278,84 @@ namespace Plugin.BLE.Android
             return new Guid(deviceGuid);
         }
 
-        public static List<AdvertisementRecord> ParseScanRecord(byte[] scanRecord)
+        public List<AdvertisementRecord> ParseScanRecord(byte[] scanRecord)
         {
             var records = new List<AdvertisementRecord>();
 
             if (scanRecord == null)
-            {
                 return records;
-            }
 
-            int index = 0;
-            while (index < scanRecord.Length)
+            try
             {
-                byte length = scanRecord[index++];
-                //Done once we run out of records
-                // 1 byte for type and length-1 bytes for data
-                if (length == 0)
+                int index = 0;
+                while (index < scanRecord.Length)
                 {
-                    break;
-                }
+                    byte length = scanRecord[index++];
+                    //Done once we run out of records
+                    // 1 byte for type and length-1 bytes for data
+                    if (length == 0) break;
 
-                int type = scanRecord[index];
-                //Done if our record isn't a valid type
-                if (type == 0)
-                {
-                    break;
-                }
+                    int type = scanRecord[index];
+                    //Done if our record isn't a valid type
+                    if (type == 0) break;
 
-                if (!Enum.IsDefined(typeof(AdvertisementRecordType), type))
-                {
-                    Trace.Message("Advertisment record type not defined: {0}", type);
-                    break;
-                }
-
-                //data length is length -1 because type takes the first byte
-                byte[] data = new byte[length - 1];
-                Array.Copy(scanRecord, index + 1, data, 0, length - 1);
-
-                // don't forget that data is little endian so reverse
-                // Supplement to Bluetooth Core Specification 1
-                // NOTE: all relevant devices are already little endian, so this is not necessary for any type except UUIDs
-                //var record = new AdvertisementRecord((AdvertisementRecordType)type, data.Reverse().ToArray());
-
-                switch ((AdvertisementRecordType)type)
-                {
-                    case AdvertisementRecordType.ServiceDataUuid32Bit:
-                    case AdvertisementRecordType.SsUuids128Bit:
-                    case AdvertisementRecordType.SsUuids16Bit:
-                    case AdvertisementRecordType.SsUuids32Bit:
-                    case AdvertisementRecordType.UuidCom32Bit:
-                    case AdvertisementRecordType.UuidsComplete128Bit:
-                    case AdvertisementRecordType.UuidsComplete16Bit:
-                    case AdvertisementRecordType.UuidsIncomple16Bit:
-                    case AdvertisementRecordType.UuidsIncomplete128Bit:
-                        Array.Reverse(data);
+                    if (!Enum.IsDefined(typeof(AdvertisementRecordType), type))
+                    {
+                        Trace.Message("Advertisment record type not defined: {0}", type);
                         break;
+                    }
+
+                    //data length is length -1 because type takes the first byte
+                    byte[] data = new byte[length - 1];
+                    Array.Copy(scanRecord, index + 1, data, 0, length - 1);
+
+                    // don't forget that data is little endian so reverse
+                    // Supplement to Bluetooth Core Specification 1
+                    // NOTE: all relevant devices are already little endian, so this is not necessary for any type except UUIDs
+                    //var record = new AdvertisementRecord((AdvertisementRecordType)type, data.Reverse().ToArray());
+
+                    switch ((AdvertisementRecordType)type)
+                    {
+                        case AdvertisementRecordType.ServiceDataUuid32Bit:
+                        case AdvertisementRecordType.SsUuids128Bit:
+                        case AdvertisementRecordType.SsUuids16Bit:
+                        case AdvertisementRecordType.SsUuids32Bit:
+                        case AdvertisementRecordType.UuidCom32Bit:
+                        case AdvertisementRecordType.UuidsComplete128Bit:
+                        case AdvertisementRecordType.UuidsComplete16Bit:
+                        case AdvertisementRecordType.UuidsIncomple16Bit:
+                        case AdvertisementRecordType.UuidsIncomplete128Bit:
+                            Array.Reverse(data);
+                            break;
+                    }
+                    var record = new AdvertisementRecord((AdvertisementRecordType)type, data);
+
+                    Trace.Message(record.ToString());
+
+                    records.Add(record);
+
+                    //Advance
+                    index += length;
                 }
-                var record = new AdvertisementRecord((AdvertisementRecordType)type, data);
-
-                //Trace.Message(record.ToString());
-
-                records.Add(record);
-
-                //Advance
-                index += length;
             }
-
+            catch(Exception)
+            {
+                //There may be a situation where scanRecord contains incorrect data.
+                Trace.Message("Failed to parse advertisementData. Device address: {0}, Data: {1}", NativeDevice.Address, scanRecord.ToHexString());
+            }
             return records;
         }
 
         public override async Task<bool> UpdateRssiAsync()
         {
-            if (GattServer == null || _gattCallback == null)
+            if (_gatt == null || _gattCallback == null)
             {
                 Trace.Message("You can't read the RSSI value for disconnected devices except on discovery on Android. Device is {0}", State);
                 return false;
             }
 
             return await TaskBuilder.FromEvent<bool, EventHandler<RssiReadCallbackEventArgs>, EventHandler>(
-              execute: () => GattServer.ReadRemoteRssi(),
+              execute: () => _gatt.ReadRemoteRssi(),
               getCompleteHandler: (complete, reject) => ((sender, args) =>
               {
                   if (args.Error == null)
@@ -350,7 +382,7 @@ namespace Plugin.BLE.Android
 
         protected override async Task<int> RequestMtuNativeAsync(int requestValue)
         {
-            if (GattServer == null || _gattCallback == null)
+            if (_gatt == null || _gattCallback == null)
             {
                 Trace.Message("You can't request a MTU for disconnected devices. Device is {0}", State);
                 return -1;
@@ -363,7 +395,7 @@ namespace Plugin.BLE.Android
             }
 
             return await TaskBuilder.FromEvent<int, EventHandler<MtuRequestCallbackEventArgs>, EventHandler>(
-              execute: () => { GattServer.RequestMtu(requestValue); },
+              execute: () => { _gatt.RequestMtu(requestValue); },
               getCompleteHandler: (complete, reject) => ((sender, args) =>
                {
                    if (args.Error != null)
@@ -389,7 +421,7 @@ namespace Plugin.BLE.Android
 
         protected override bool UpdateConnectionIntervalNative(ConnectionInterval interval)
         {
-            if (GattServer == null || _gattCallback == null)
+            if (_gatt == null || _gattCallback == null)
             {
                 Trace.Message("You can't update a connection interval for disconnected devices. Device is {0}", State);
                 return false;
@@ -405,12 +437,40 @@ namespace Plugin.BLE.Android
             {
                 // map to android gattConnectionPriorities
                 // https://developer.android.com/reference/android/bluetooth/BluetoothGatt.html#CONNECTION_PRIORITY_BALANCED
-                return GattServer.RequestConnectionPriority((GattConnectionPriority)(int)interval);
+                return _gatt.RequestConnectionPriority((GattConnectionPriority)(int)interval);
             }
             catch (Exception ex)
             {
                 throw new Exception($"Update Connection Interval fails with error. {ex.Message}");
             }
+        }
+
+
+        public override bool IsConnectable { get; protected set; }
+
+        public override bool SupportsIsConnectable
+        {
+            get =>
+#if NET6_0_OR_GREATER
+                OperatingSystem.IsAndroidVersionAtLeast(26);
+#else
+                (Build.VERSION.SdkInt >= BuildVersionCodes.O); 
+#endif
+        }
+        
+        protected override DeviceBondState GetBondState()
+        {
+            if (NativeDevice == null)
+            {
+                Trace.Message($"[Warning]: Can't get bond state of {Name}. NativeDevice is null.");
+                return DeviceBondState.NotSupported;
+            }
+            return NativeDevice.BondState.FromNative();
+        }
+
+        public override bool UpdateConnectionParameters(ConnectParameters connectParameters = default)
+        {
+            throw new NotImplementedException();
         }
     }
 }

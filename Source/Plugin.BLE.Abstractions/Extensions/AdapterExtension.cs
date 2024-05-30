@@ -9,7 +9,10 @@ using Plugin.BLE.Abstractions.Utils;
 
 namespace Plugin.BLE.Abstractions.Extensions
 {
-    public static class AdapterExtenstion
+    /// <summary>
+    /// Various extensions for the <c>Adapter</c> classes.
+    /// </summary>
+    public static class AdapterExtension
     {
         /// <summary>
         /// Starts scanning for BLE devices.
@@ -19,7 +22,7 @@ namespace Plugin.BLE.Abstractions.Extensions
         /// <returns>A task that represents the asynchronous read operation. The Task will finish after the scan has ended.</returns>
         public static Task StartScanningForDevicesAsync(this IAdapter adapter, CancellationToken cancellationToken)
         {
-            return adapter.StartScanningForDevicesAsync(cancellationToken: cancellationToken);
+            return adapter.StartScanningForDevicesAsync(scanFilterOptions: null, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -29,9 +32,21 @@ namespace Plugin.BLE.Abstractions.Extensions
         /// <param name="serviceUuids">Requested service Ids.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests. The default value is None.</param>
         /// <returns>A task that represents the asynchronous read operation. The Task will finish after the scan has ended.</returns>
-        public static Task StartScanningForDevicesAsync(this IAdapter adapter, Guid[] serviceUuids, CancellationToken cancellationToken = default(CancellationToken))
+        public static Task StartScanningForDevicesAsync(this IAdapter adapter, Guid[] serviceUuids, CancellationToken cancellationToken = default)
         {
-            return adapter.StartScanningForDevicesAsync(serviceUuids, null, cancellationToken: cancellationToken);
+            return adapter.StartScanningForDevicesAsync(new ScanFilterOptions() { ServiceUuids = serviceUuids }, null, cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Starts scanning for BLE devices that match the provided <paramref name="scanFilterOptions"/>.
+        /// </summary>
+        /// <param name="adapter">Target adapter.</param>
+        /// <param name="scanFilterOptions">Scan Filter Options for native level filtering. Some options are platform specific, see comments.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests. The default value is None.</param>
+        /// <returns>A task that represents the asynchronous read operation. The Task will finish after the scan has ended.</returns>
+        public static Task StartScanningForDevicesAsync(this IAdapter adapter, ScanFilterOptions scanFilterOptions, CancellationToken cancellationToken = default)
+        {
+            return adapter.StartScanningForDevicesAsync(scanFilterOptions, null, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -42,17 +57,23 @@ namespace Plugin.BLE.Abstractions.Extensions
         /// <param name="deviceFilter">Function that filters the devices.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests. The default value is None.</param>
         /// <returns>A task that represents the asynchronous read operation. The Task will finish after the scan has ended.</returns>
-        public static Task StartScanningForDevicesAsync(this IAdapter adapter, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken))
+        public static Task StartScanningForDevicesAsync(this IAdapter adapter, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default)
         {
-            return adapter.StartScanningForDevicesAsync(deviceFilter: deviceFilter, cancellationToken: cancellationToken);
+            return adapter.StartScanningForDevicesAsync(scanFilterOptions: null, deviceFilter: deviceFilter, cancellationToken: cancellationToken);
         }
 
-        public static Task<IDevice> DiscoverDeviceAsync(this IAdapter adapter, Guid deviceId, CancellationToken cancellationToken = default(CancellationToken))
+        /// <summary>
+        /// Try to discover a device with a specific device Id.
+        /// </summary>
+        public static Task<IDevice> DiscoverDeviceAsync(this IAdapter adapter, Guid deviceId, CancellationToken cancellationToken = default)
         {
             return DiscoverDeviceAsync(adapter, device => device.Id == deviceId, cancellationToken);
         }
 
-        public static async Task<IDevice> DiscoverDeviceAsync(this IAdapter adapter, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken))
+        /// <summary>
+        /// Try to discover a device that matches a filter function.
+        /// </summary>
+        public static async Task<IDevice> DiscoverDeviceAsync(this IAdapter adapter, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default)
         {
             var device = adapter.DiscoveredDevices.FirstOrDefault(deviceFilter);
             if (device != null)
@@ -94,7 +115,7 @@ namespace Plugin.BLE.Abstractions.Extensions
         /// <exception cref="DeviceConnectionException">Thrown if the device connection fails.</exception>
         public static Task ConnectToDeviceAsync(this IAdapter adapter, IDevice device, ConnectParameters connectParameters, CancellationToken cancellationToken)
         {
-            return adapter.ConnectToDeviceAsync(device, connectParameters:connectParameters, cancellationToken: cancellationToken);
+            return adapter.ConnectToDeviceAsync(device, connectParameters: connectParameters, cancellationToken: cancellationToken);
         }
     }
 }

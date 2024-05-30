@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using CoreBluetooth;
 using Plugin.BLE.Abstractions;
@@ -10,29 +9,35 @@ using Plugin.BLE.Abstractions.Utils;
 
 namespace Plugin.BLE.iOS
 {
-    public class Service : ServiceBase
+    public class Service : ServiceBase<CBService>
     {
-        private readonly CBService _service;
         private readonly CBPeripheral _device;
+        private readonly IBleCentralManagerDelegate _bleCentralManagerDelegate;
 
-        public override Guid Id => _service.UUID.GuidFromUuid();
-        public override bool IsPrimary => _service.Primary;
+        public override Guid Id => NativeService.UUID.GuidFromUuid();
+        public override bool IsPrimary => NativeService.Primary;
 
-        public Service(CBService service, IDevice device) : base(device)
+        public Service(CBService nativeService, IDevice device, IBleCentralManagerDelegate bleCentralManagerDelegate)
+            : base(device, nativeService)
         {
-            _service = service;
             _device = device.NativeDevice as CBPeripheral;
+            _bleCentralManagerDelegate = bleCentralManagerDelegate;
         }
 
-        protected override Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync(CancellationToken cancellationToken = default(CancellationToken))
+        protected override Task<IList<ICharacteristic>> GetCharacteristicsNativeAsync()
         {
-            return TaskBuilder.FromEvent<IList<ICharacteristic>, EventHandler<CBServiceEventArgs>>(
-                execute: () => _device.DiscoverCharacteristics(_service),
+            var exception = new Exception($"Device '{Device.Id}' disconnected while fetching characteristics for service with {Id}.");
+
+            return TaskBuilder.FromEvent<IList<ICharacteristic>, EventHandler<CBServiceEventArgs>, EventHandler<CBPeripheralErrorEventArgs>>(
+                execute: () =>
+                {
+                    if (_device.State != CBPeripheralState.Connected)
+                        throw exception;
+
+                    _device.DiscoverCharacteristics(NativeService);
+                },
                 getCompleteHandler: (complete, reject) => (sender, args) =>
                 {
-                    if (args.Service.UUID != _service.UUID)
-                        return;
-
                     if (args.Error != null)
                     {
                         reject(new Exception($"Discover characteristics error: {args.Error.Description}"));
@@ -44,24 +49,27 @@ namespace Plugin.BLE.iOS
                     }
                     else
                     {
-                        try
-                        {
-                            var characteristics = args.Service.Characteristics
-                                .Select(characteristic => new Characteristic(characteristic, _device, this))
-                                .Cast<ICharacteristic>().ToList();
-                            complete(characteristics);
-                        }
-                        catch (Exception)
-                        {
-                            //For unknown reasons this sometimes gives us a cast exception, apparently there are CBservice's in the list as well.
-                            //In the logs it figures as an AppDomain exception hence the catch all
-                            complete(new List<ICharacteristic>());
-                        }
+                        var characteristics = args.Service.Characteristics
+                                                  .Select(characteristic => new Characteristic(characteristic, _device, this, _bleCentralManagerDelegate))
+                                                  .Cast<ICharacteristic>().ToList();
+                        complete(characteristics);
                     }
                 },
+
+#if NET6_0_OR_GREATER || MACCATALYST
+                subscribeComplete: handler => _device.DiscoveredCharacteristics += handler,
+                unsubscribeComplete: handler => _device.DiscoveredCharacteristics -= handler,
+#else
                 subscribeComplete: handler => _device.DiscoveredCharacteristic += handler,
                 unsubscribeComplete: handler => _device.DiscoveredCharacteristic -= handler,
-                token: cancellationToken);
+#endif
+                getRejectHandler: reject => ((sender, args) =>
+                {
+                    if (args.Peripheral.Identifier == _device.Identifier)
+                        reject(exception);
+                }),
+                subscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral += handler,
+                unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler);
         }
     }
 }

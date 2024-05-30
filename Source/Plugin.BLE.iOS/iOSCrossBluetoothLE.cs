@@ -22,7 +22,7 @@ namespace Plugin.BLE
 
         private static IBluetoothLE CreateImplementation(CBCentralInitOptions cbCentralInitOptions)
         {
-            var implementation = new BleImplementation(cbCentralInitOptions);
+            var implementation = new BleImplementation();
             implementation.Initialize();
             return implementation;
         }

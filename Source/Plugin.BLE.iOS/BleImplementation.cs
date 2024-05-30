@@ -1,31 +1,40 @@
-using System;
 using CoreBluetooth;
 using CoreFoundation;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Extensions;
 using Plugin.BLE.iOS;
-using UIKit;
+using System.Threading.Tasks;
 
 namespace Plugin.BLE
 {
-    internal class BleImplementation : BleImplementationBase
+    public class BleImplementation : BleImplementationBase
     {
-        private readonly CBCentralInitOptions _cbCentralInitOptions;
+        private static string _restorationIdentifier;
+        private static bool _showPowerAlert = true;
 
         private CBCentralManager _centralManager;
+        private IBleCentralManagerDelegate _bleCentralManagerDelegate;
 
-        public BleImplementation(CBCentralInitOptions cbCentralInitOptions)
+        public static void UseRestorationIdentifier(string restorationIdentifier)
         {
-            _cbCentralInitOptions = cbCentralInitOptions ?? new CBCentralInitOptions();
+            _restorationIdentifier = restorationIdentifier;
+        }
+
+        public static void ShowPowerAlert(bool showPowerAlert)
+        {
+            _showPowerAlert = showPowerAlert;
         }
 
         protected override void InitializeNative()
         {
-            DefaultTrace.DefaultTraceInit();
-            var bleQueue = new DispatchQueue("Bang.Olufsen.BleQueue", false);
-            _centralManager = new CBCentralManager(null, bleQueue, _cbCentralInitOptions);
-            _centralManager.UpdatedState += (s, e) => State = GetState();
+            var cmDelegate = new BleCentralManagerDelegate();
+            _bleCentralManagerDelegate = cmDelegate;
+
+            var options = CreateInitOptions();
+
+            _centralManager = new CBCentralManager(cmDelegate, DispatchQueue.CurrentQueue, options);
+            _bleCentralManagerDelegate.UpdatedState += (s, e) => State = GetState();
         }
 
         protected override BluetoothState GetInitialStateNative()
@@ -35,20 +44,29 @@ namespace Plugin.BLE
 
         protected override IAdapter CreateNativeAdapter()
         {
-            return new Adapter(_centralManager);
+            return new Adapter(_centralManager, _bleCentralManagerDelegate);
         }
 
         private BluetoothState GetState()
         {
-            if (UIDevice.CurrentDevice.CheckSystemVersion(10, 0))
+            return _centralManager?.State.ToBluetoothState() ?? BluetoothState.Unavailable;
+        }
+
+        private CBCentralInitOptions CreateInitOptions()
+        {
+            return new CBCentralInitOptions
             {
-                var manager = (CBManager)_centralManager;
-                return manager.State.ToBluetoothState();
-            }
-            else
-            {
-                return _centralManager.State.ToBluetoothState();
-            }
+#if __IOS__
+                RestoreIdentifier = _restorationIdentifier,
+#endif
+                ShowPowerAlert = _showPowerAlert
+            };
+        }
+
+        public override Task<bool> TrySetStateAsync(bool on)
+        {
+            Trace.Message("WARNING TrySetStateAsync is not implemented for Apple");
+            return Task<bool>.FromResult(false);
         }
     }
 }

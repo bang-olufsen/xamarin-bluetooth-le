@@ -8,91 +8,78 @@ using Plugin.BLE.Android.CallbackEventArgs;
 
 namespace Plugin.BLE.Android
 {
-    public class Descriptor : DescriptorBase
+    public class Descriptor : DescriptorBase<BluetoothGattDescriptor>
     {
-        private readonly BluetoothGattDescriptor _nativeDescriptor;
         private readonly BluetoothGatt _gatt;
         private readonly IGattCallback _gattCallback;
 
-        public override Guid Id => Guid.ParseExact(_nativeDescriptor.Uuid.ToString(), "d");
+        public override Guid Id => Guid.ParseExact(NativeDescriptor.Uuid.ToString(), "d");
 
-        public override byte[] Value => _nativeDescriptor.GetValue();
+        public override byte[] Value => NativeDescriptor.GetValue();
 
-        public Descriptor(BluetoothGattDescriptor nativeDescriptor, BluetoothGatt gatt, IGattCallback gattCallback, ICharacteristic characteristic) : base(characteristic)
+        public Descriptor(BluetoothGattDescriptor nativeDescriptor, BluetoothGatt gatt, IGattCallback gattCallback, ICharacteristic characteristic) : base(characteristic, nativeDescriptor)
         {
             _gattCallback = gattCallback;
             _gatt = gatt;
-            _nativeDescriptor = nativeDescriptor;
         }
 
-        protected override async Task WriteNativeAsync(byte[] data)
+        protected override Task WriteNativeAsync(byte[] data)
         {
-            await CrazyQueue.Run(async () =>
-            {
-                await TaskBuilder.FromEvent<bool, EventHandler<DescriptorCallbackEventArgs>, EventHandler>(
-                   execute: () => InternalWrite(data),
-                   getCompleteHandler: (complete, reject) => ((sender, args) =>
-                   {
-                       if (args.Descriptor.Uuid != _nativeDescriptor.Uuid)
-                           return;
+            return TaskBuilder.FromEvent<bool, EventHandler<DescriptorCallbackEventArgs>, EventHandler>(
+               execute: () => InternalWrite(data),
+               getCompleteHandler: (complete, reject) => ((sender, args) =>
+               {
+                   if (args.Descriptor.Uuid != NativeDescriptor.Uuid)
+                       return;
 
-                       if (args.Exception != null)
-                           reject(args.Exception);
-                       else
-                           complete(true);
-                   }),
-                   subscribeComplete: handler => _gattCallback.DescriptorValueWritten += handler,
-                   unsubscribeComplete: handler => _gattCallback.DescriptorValueWritten -= handler,
-                   getRejectHandler: reject => ((sender, args) =>
-                   {
-                       reject(new Exception($"Device '{Characteristic.Service.Device.Id}' disconnected while writing descriptor with {Id}."));
-                   }),
-                   subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
-                   unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler);
-            });
+                   if (args.Exception != null)
+                       reject(args.Exception);
+                   else
+                       complete(true);
+               }),
+               subscribeComplete: handler => _gattCallback.DescriptorValueWritten += handler,
+               unsubscribeComplete: handler => _gattCallback.DescriptorValueWritten -= handler,
+               getRejectHandler: reject => ((sender, args) =>
+               {
+                   reject(new Exception($"Device '{Characteristic.Service.Device.Id}' disconnected while writing descriptor with {Id}."));
+               }),
+               subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
+               unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler);
         }
 
         private void InternalWrite(byte[] data)
         {
-            if (!_nativeDescriptor.SetValue(data))
+            if (!NativeDescriptor.SetValue(data))
                 throw new Exception("GATT: SET descriptor value failed");
 
-            if (!_gatt.WriteDescriptor(_nativeDescriptor))
+            if (!_gatt.WriteDescriptor(NativeDescriptor))
                 throw new Exception("GATT: WRITE descriptor value failed");
         }
 
         protected override async Task<byte[]> ReadNativeAsync()
         {
-            var result = new byte[0];
-
-            await CrazyQueue.Run(async () =>
-            {
-
-                result = await TaskBuilder.FromEvent<byte[], EventHandler<DescriptorCallbackEventArgs>, EventHandler>(
-                    execute: ReadInternal,
-                    getCompleteHandler: (complete, reject) => ((sender, args) =>
+            return await TaskBuilder.FromEvent<byte[], EventHandler<DescriptorCallbackEventArgs>, EventHandler>(
+               execute: ReadInternal,
+               getCompleteHandler: (complete, reject) => ((sender, args) =>
+                  {
+                      if (args.Descriptor.Uuid == NativeDescriptor.Uuid)
                       {
-                          if (args.Descriptor.Uuid == _nativeDescriptor.Uuid)
-                          {
-                              complete(args.Descriptor.GetValue());
-                          }
-                      }),
-                    subscribeComplete: handler => _gattCallback.DescriptorValueRead += handler,
-                    unsubscribeComplete: handler => _gattCallback.DescriptorValueRead -= handler,
-                    getRejectHandler: reject => ((sender, args) =>
-                    {
-                       reject(new Exception($"Device '{Characteristic.Service.Device.Id}' disconnected while reading descripor with {Id}."));
-                    }),
-                    subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
-                    unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler);
-            });
-
-            return result;
+                          complete(args.Descriptor.GetValue());
+                      }
+                  }),
+               subscribeComplete: handler => _gattCallback.DescriptorValueRead += handler,
+               unsubscribeComplete: handler => _gattCallback.DescriptorValueRead -= handler,
+               getRejectHandler: reject => ((sender, args) =>
+               {
+                   reject(new Exception($"Device '{Characteristic.Service.Device.Id}' disconnected while reading descriptor with {Id}."));
+               }),
+               subscribeReject: handler => _gattCallback.ConnectionInterrupted += handler,
+               unsubscribeReject: handler => _gattCallback.ConnectionInterrupted -= handler);
         }
 
         private void ReadInternal()
         {
-            if (!_gatt.ReadDescriptor(_nativeDescriptor))
+            if (!_gatt.ReadDescriptor(NativeDescriptor))
                 throw new Exception("GATT: read characteristic FALSE");
         }
     }
