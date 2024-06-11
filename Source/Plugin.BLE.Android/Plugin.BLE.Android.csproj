@@ -17,6 +17,7 @@
     <TargetFrameworkVersion>v9.0</TargetFrameworkVersion>
     <AndroidTlsProvider>
     </AndroidTlsProvider>
+    <LangVersion>9</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -61,9 +62,12 @@
     <Compile Include="DefaultTrace.cs" />
     <Compile Include="Descriptor.cs" />
     <Compile Include="Device.cs" />
+    <Compile Include="Extensions\BluetoothDeviceExtension.cs" />
     <Compile Include="Extensions\BluetoothStateExtension.cs" />
     <Compile Include="Extensions\CharacteristicWriteTypeExtension.cs" />
+    <Compile Include="Extensions\DeviceBondStateExtension.cs" />
     <Compile Include="Extensions\GattWriteTypeExtension.cs" />
+    <Compile Include="Extensions\ScanMatchModeExtension.cs" />
     <Compile Include="Extensions\ScanModeExtension.cs" />
     <Compile Include="GattCallback.cs" />
     <Compile Include="PhyEventArgs.cs" />

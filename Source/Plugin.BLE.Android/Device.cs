@@ -36,7 +36,7 @@ namespace Plugin.BLE.Android
         /// the registration must be disposed to avoid disconnecting after a connection
         /// </summary>
         private CancellationTokenRegistration _connectCancellationTokenRegistration;
-        
+
         private TaskCompletionSource<bool> _bondCompleteTaskCompletionSource;
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace Plugin.BLE.Android
 	        {
 		        Trace.Message("[Warning]: Can't discover services {0}. Gatt is null.", Name);
 	        }
-	        
+
             return await TaskBuilder
                 .FromEvent<IReadOnlyList<IService>, EventHandler<ServicesDiscoveredCallbackEventArgs>, EventHandler>(
                     execute: () =>
@@ -301,7 +301,7 @@ namespace Plugin.BLE.Android
 
                     if (!Enum.IsDefined(typeof(AdvertisementRecordType), type))
                     {
-                        Trace.Message("Advertisment record type not defined: {0}", type);
+                        //Trace.Message("Advertisment record type not defined: {0}", type);
                         break;
                     }
 
@@ -330,7 +330,7 @@ namespace Plugin.BLE.Android
                     }
                     var record = new AdvertisementRecord((AdvertisementRecordType)type, data);
 
-                    Trace.Message(record.ToString());
+                    // Trace.Message(record.ToString());
 
                     records.Add(record);
 
@@ -454,10 +454,10 @@ namespace Plugin.BLE.Android
 #if NET6_0_OR_GREATER
                 OperatingSystem.IsAndroidVersionAtLeast(26);
 #else
-                (Build.VERSION.SdkInt >= BuildVersionCodes.O); 
+                (Build.VERSION.SdkInt >= BuildVersionCodes.O);
 #endif
         }
-        
+
         protected override DeviceBondState GetBondState()
         {
             if (NativeDevice == null)
