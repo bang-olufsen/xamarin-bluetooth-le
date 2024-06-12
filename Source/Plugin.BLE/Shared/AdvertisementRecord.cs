@@ -166,6 +166,11 @@ namespace Plugin.BLE.Abstractions
         SecureConnectionsRandomValue = 0x23,
 
         /// <summary>
+        /// «Broadcast Name»   Public Broadcast Profile v1.0 or later
+        /// </summary>
+        BroadcastName = 0x30,
+
+        /// <summary>
         /// «3D Information Data»	​3D Synchronization Profile, v1.0 or later
         /// </summary>
         Information3DData = 0x3D,
@@ -173,13 +178,7 @@ namespace Plugin.BLE.Abstractions
         /// <summary>
         /// «Manufacturer Specific Data»	Bluetooth Core Specification:
         /// </summary>
-        ManufacturerSpecificData = 0xFF,
-
-        /// <summary>
-        /// The is connectable flag. This is only reliable for the ios imlementation. The android stack does not expose this in the client.
-        /// </summary>
-        // obsolete
-        // IsConnectable = 0xAA
+        ManufacturerSpecificData = 0xFF
     }
 
     /// <summary>

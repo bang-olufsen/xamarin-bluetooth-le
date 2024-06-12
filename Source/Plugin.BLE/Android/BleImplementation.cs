@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Android.App;
 using Android.Bluetooth;
 using Android.Content;
@@ -86,5 +87,15 @@ namespace Plugin.BLE
 
         protected override IAdapter CreateNativeAdapter()
             => new Adapter(_bluetoothManager);
+
+        public override Task<bool> TrySetStateAsync(bool on)
+        {
+            const string ACTION_REQUEST_DISABLE = "android.bluetooth.adapter.action.REQUEST_DISABLE";
+
+            var intent = new Intent(on ? BluetoothAdapter.ActionRequestEnable : ACTION_REQUEST_DISABLE);
+            intent.SetFlags(ActivityFlags.NewTask);
+            Application.Context.StartActivity(intent);
+            return Task.FromResult(true);
+        }
     }
 }

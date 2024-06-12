@@ -1,10 +1,11 @@
 ﻿<Project Sdk="MSBuild.Sdk.Extras/3.0.44">
 	<PropertyGroup>
-		<TargetFrameworks>net6.0-android;net6.0-ios;net6.0-maccatalyst;net7.0-android;net7.0-ios;net7.0-maccatalyst</TargetFrameworks>
-		<TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">$(TargetFrameworks);MonoAndroid10.0;Xamarin.iOS10;Xamarin.Mac20;uap10.0.19041;net6.0-windows10.0.19041;net7.0-windows10.0.19041</TargetFrameworks>
+		<TargetFrameworks>net7.0-android33.0;net8.0-android34.0</TargetFrameworks>
+		<TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('linux'))">$(TargetFrameworks);net7.0-ios;net7.0-maccatalyst;net8.0-ios;net8.0-maccatalyst</TargetFrameworks>
+		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);MonoAndroid13.0;Xamarin.iOS10;Xamarin.Mac20;uap10.0.19041;net7.0-windows10.0.19041;net8.0-windows10.0.19041</TargetFrameworks>
 		<AssemblyName>MVVMCross.Plugins.BLE</AssemblyName>
 		<RootNamespace>MVVMCross.Plugins.BLE</RootNamespace>
-		<Version>3.0.0-beta.4</Version>
+		<Version>3.1.0</Version>
 		<Product>$(AssemblyName) ($(TargetFramework))</Product>
 		<Authors>Adrian Seceleanu, Sven-Michael Stübe, Janus Weil</Authors>
 		<PackageId>MvvmCross.Plugin.BLE</PackageId>
@@ -14,13 +15,13 @@
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
 		<Owners>Adrian Seceleanu, Sven-Michael Stübe, Janus Weil</Owners>
 		<PackageProjectUrl>https://github.com/dotnet-bluetooth-le/dotnet-bluetooth-le/</PackageProjectUrl>
-		<Summary>MVVMCross Plugin to access Bluetooth Low Energy functionality on Android, iOS, macOS, and UWP.</Summary>
+		<Summary>MVVMCross Plugin to access Bluetooth Low Energy functionality on Android, iOS, macOS, and Windows.</Summary>
 		<PackageTags>
-			xamarin, maui, pcl, xam.pcl, uwp, bluetooth, ble, .net maui, xamarin.forms, ios
+			xamarin, maui, pcl, xam.pcl, bluetooth, ble, .net maui, xamarin.forms, android, ios
 		</PackageTags>
 		<Title>MVVMCross Bluetooth Low Energy (BLE) Plugin for .NET MAUI and Xamarin</Title>
 		<Description>
-			MVVMCross Plugin to access Bluetooth Low Energy functionality on Android, iOS, macOS, and UWP.
+			MVVMCross Plugin to access Bluetooth Low Energy functionality on Android, iOS, macOS, and Windows.
 			Read the full documentation on the projects page.
 		</Description>
 		<Copyright>Apache-2.0</Copyright>
@@ -52,6 +53,11 @@
 		<AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="$(TargetFramework.Contains('-windows10'))">
+		<RuntimeIdentifiers>win10-x64;win10-x86;win10-arm64</RuntimeIdentifiers>
+		<UseRidGraph>true</UseRidGraph>
+	</PropertyGroup>
+
 	<ItemGroup Condition=" '$(Configuration)'=='Release' And '$(OS)' == 'Windows_NT' ">
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
 			<PrivateAssets>all</PrivateAssets>
@@ -74,7 +80,7 @@
 
 	<ItemGroup>
 		<None Include="..\..\icon_small.png" Pack="true" Visible="false" PackagePath="" />
-		<None Include="..\..\README.md" Pack="true" Visible="false" PackagePath=""/>
+		<None Include="..\..\README.md" Pack="true" Visible="false" PackagePath="" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" $(TargetFramework.StartsWith('uap10.0')) ">
@@ -82,7 +88,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" $(TargetFramework.Contains('-windows')) ">
-		<PackageReference Include="MvvmCross" Version="9.0.1" />
+		<PackageReference Include="MvvmCross" Version="9.1.1" />
 	</ItemGroup>
 
 	<PropertyGroup Condition=" $(TargetFramework.StartsWith('uap10.0')) ">
@@ -93,7 +99,7 @@
 	</PropertyGroup>
 
 	<ItemGroup Condition=" $(TargetFramework.Contains('-android')) ">
-		<PackageReference Include="MvvmCross" Version="9.0.1" />
+		<PackageReference Include="MvvmCross" Version="9.1.1" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" $(TargetFramework.StartsWith('MonoAndroid')) ">
@@ -105,7 +111,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" $(TargetFramework.Contains('-ios')) ">
-		<PackageReference Include="MvvmCross" Version="9.0.1" />
+		<PackageReference Include="MvvmCross" Version="9.1.1" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" $(TargetFramework.StartsWith('Xamarin.Mac')) ">
@@ -113,7 +119,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" $(TargetFramework.Contains('-mac')) ">
-		<PackageReference Include="MvvmCross" Version="9.0.1" />
+		<PackageReference Include="MvvmCross" Version="9.1.1" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -127,5 +133,8 @@
 			<HintPath Condition="Exists('C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Xamarin.VisualStudio')">C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Xamarin.VisualStudio\Xamarin.Mac.dll</HintPath>
 			<HintPath Condition="Exists('C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\Extensions\Xamarin.VisualStudio')">C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\Extensions\Xamarin.VisualStudio\Xamarin.Mac.dll</HintPath>
 		</Reference>
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="7.0.0" />
 	</ItemGroup>
 </Project>

@@ -8,7 +8,7 @@ using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Extensions;
 using System.Threading;
 
-namespace Plugin.BLE.UWP
+namespace Plugin.BLE.Windows
 {
     public class Service : ServiceBase<GattDeviceService>
     {

@@ -1,4 +1,4 @@
-﻿﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,7 +21,7 @@ namespace Plugin.BLE.Abstractions.Contracts
         string Name { get; }
 
         /// <summary>
-        /// Last known rssi value in decibals.
+        /// Last known RSSI value in decibels.
         /// Can be updated via <see cref="UpdateRssiAsync()"/>.
         /// </summary>
         int Rssi { get; }
@@ -67,15 +67,15 @@ namespace Plugin.BLE.Abstractions.Contracts
         Task<IService> GetServiceAsync(Guid id, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Updates the rssi value.
+        /// Updates the RSSI value.
         /// </summary>
         /// <remarks>
-        /// Important:
-        /// On Android: This function will only work if the device is connected. The Rssi value will be determined once on the discovery of the device.
+        /// This method is only supported on Android, iOS and MacOS, but not on Windows.
+        /// On Android: This function will only work if the device is connected. The RSSI value will be determined once on the discovery of the device.
         /// </remarks>
         /// <returns>
-        /// A task that represents the asynchronous read operation. The Result property will contain a boolean that inticates if the update was successful.
-        /// The Task will finish after Rssi has been updated.
+        /// A task that represents the asynchronous read operation. The Result property will contain a boolean that indicates if the update was successful.
+        /// The Task will finish after the RSSI has been updated.
         /// </returns>
         Task<bool> UpdateRssiAsync();
 
@@ -87,6 +87,7 @@ namespace Plugin.BLE.Abstractions.Contracts
         /// Important: 
         /// On Android: This function will only work with API level 21 and higher. Other API level will get an default value as function result.
         /// On iOS: Requesting MTU sizes is not supported by iOS. The function will return the current negotiated MTU between master / slave.
+        /// On Windows: Requesting MTU sizes is not directly supported. Windows will always try and negotiate the maximum MTU between master / slave. The function will return the current negotiated MTU between master / slave.
         /// </remarks>
         /// <returns>
         /// A task that represents the asynchronous operation. The result contains the negotiated MTU size between master and slave</returns>
@@ -107,7 +108,6 @@ namespace Plugin.BLE.Abstractions.Contracts
         /// <param name="interval">The requested interval (High/Low/Normal)</param>
         bool UpdateConnectionInterval(ConnectionInterval interval);
 
-
         /// <summary>
         /// Gets the information if the device has hinted during advertising that the device is connectable.
         /// This information is not pat of an advertising record. It's determined from the PDU header.
@@ -120,5 +120,22 @@ namespace Plugin.BLE.Abstractions.Contracts
         /// True, if device supports IsConnectable else False
         /// </summary>
         bool SupportsIsConnectable { get; }
+
+        /// <summary>
+        /// Gets the bonding state of a device.
+        /// </summary>
+        DeviceBondState BondState { get; }
+
+        /// <summary>
+        /// Updates the connection parameters if already connected
+        /// </summary>
+        /// <remarks>
+        /// Only implemented for Windows
+        /// </remarks>
+        /// <param name="connectParameters">Connection parameters. Contains platform specific parameters needed to achieve connection. The default value is None.</param>
+        /// <returns>
+        /// The Result property will contain a boolean that indicates if the update was successful.        
+        /// </returns>
+        bool UpdateConnectionParameters(ConnectParameters connectParameters = default);
     }
 }

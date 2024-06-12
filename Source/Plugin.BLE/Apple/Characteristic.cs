@@ -34,14 +34,14 @@ namespace Plugin.BLE.iOS
                 {
                     return new byte[0];
                 }
-                    
+
                 return value.ToArray();
             }
-        } 
+        }
 
         public override CharacteristicPropertyType Properties => (CharacteristicPropertyType)(int)NativeCharacteristic.Properties;
 
-        public Characteristic(CBCharacteristic nativeCharacteristic, CBPeripheral parentDevice, IService service, IBleCentralManagerDelegate bleCentralManagerDelegate) 
+        public Characteristic(CBCharacteristic nativeCharacteristic, CBPeripheral parentDevice, IService service, IBleCentralManagerDelegate bleCentralManagerDelegate)
             : base(service, nativeCharacteristic)
         {
             _parentDevice = parentDevice;
@@ -111,7 +111,7 @@ namespace Plugin.BLE.iOS
 #endif
                         {
                             Trace.Message($"Read characterteristic value: {Value?.ToHexString()}");
-                            int resultCode = (args.Error == null) ? 0 : NSErrorToGattStatus(args.Error);
+                            int resultCode = NSErrorToGattStatus(args.Error);
                             complete((Value, resultCode));
                         }
                     },
@@ -134,7 +134,7 @@ namespace Plugin.BLE.iOS
             if (writeType.ToNative() == CBCharacteristicWriteType.WithResponse)
             {
                 task = TaskBuilder.FromEvent<int, EventHandler<CBCharacteristicEventArgs>, EventHandler<CBPeripheralErrorEventArgs>>(
-                    execute: () => 
+                    execute: () =>
                     {
                         if (_parentDevice.State != CBPeripheralState.Connected)
                             throw exception;
@@ -144,7 +144,7 @@ namespace Plugin.BLE.iOS
                         if (args.Characteristic.UUID != NativeCharacteristic.UUID)
                             return;
 
-                        complete((args.Error == null) ? 0 : NSErrorToGattStatus(args.Error));
+                        complete(NSErrorToGattStatus(args.Error));
                     },
                     subscribeComplete: handler => _parentDevice.WroteCharacteristicValue += handler,
                     unsubscribeComplete: handler => _parentDevice.WroteCharacteristicValue -= handler,
@@ -190,7 +190,8 @@ namespace Plugin.BLE.iOS
                     unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler);
 
                 }
-                else {
+                else
+                {
                     task = Task.FromResult(0);
                 }
             }
@@ -240,7 +241,7 @@ namespace Plugin.BLE.iOS
                           reject(new Exception($"Device {Service.Device.Id} disconnected while starting updates for characteristic with {Id}."));
                   }),
                   subscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral += handler,
-                  unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler, 
+                  unsubscribeReject: handler => _bleCentralManagerDelegate.DisconnectedPeripheral -= handler,
                   token: cancellationToken);
         }
 
@@ -287,6 +288,9 @@ namespace Plugin.BLE.iOS
 
         protected int NSErrorToGattStatus(NSError error)
         {
+            if (error == null)
+                return 0;
+
             switch (error.Domain)
             {
                 case "CBATTErrorDomain":

@@ -49,6 +49,10 @@ namespace Plugin.BLE.Abstractions
         /// </summary>
         public event EventHandler<DeviceErrorEventArgs> DeviceConnectionError;
         /// <summary>
+        /// Occurs when the bonding state of a device changed.
+        /// </summary>
+        public event EventHandler<DeviceBondStateChangedEventArgs> DeviceBondStateChanged;
+        /// <summary>
         /// Occurs when the scan has been stopped due the timeout after <see cref="ScanTimeout"/> ms.
         /// </summary>
         public event EventHandler ScanTimeoutElapsed;
@@ -73,8 +77,7 @@ namespace Plugin.BLE.Abstractions
         /// Default: <see cref="ScanMode.LowPower"/> 
         /// </summary>
         public ScanMode ScanMode { get; set; } = ScanMode.LowPower;
-
-
+        
         /// <summary>
         /// Scan match mode defines how agressively we look for adverts
         /// </summary>
@@ -101,12 +104,17 @@ namespace Plugin.BLE.Abstractions
         public IReadOnlyList<IDevice> ConnectedDevices => ConnectedDeviceRegistry.Values.ToList();
 
         /// <summary>
+        /// List of all bonded devices (or null if the device does not support this information).
+        /// </summary>
+        public IReadOnlyList<IDevice> BondedDevices => GetBondedDevices();
+
+        /// <summary>
         /// Starts scanning for BLE devices that fulfill the <paramref name="deviceFilter"/>.
         /// DeviceDiscovered will only be called, if <paramref name="deviceFilter"/> returns <c>true</c> for the discovered device.
         /// </summary>
-        public async Task StartScanningForDevicesAsync(ScanFilterOptions scanFilterOptions, 
-            Func<IDevice, bool> deviceFilter = null, 
-            bool allowDuplicatesKey = false, 
+        public async Task StartScanningForDevicesAsync(ScanFilterOptions scanFilterOptions,
+            Func<IDevice, bool> deviceFilter = null,
+            bool allowDuplicatesKey = false,
             CancellationToken cancellationToken = default)
         {
             if (IsScanning)
@@ -235,7 +243,7 @@ namespace Plugin.BLE.Abstractions
 
                             subscribeReject: handler => DeviceConnectionError += handler,
                             unsubscribeReject: handler => DeviceConnectionError -= handler,
-                            token: cts.Token);
+                            token: cts.Token, mainthread: false);
                     }
                     catch (Exception)
                     {
@@ -363,6 +371,36 @@ namespace Plugin.BLE.Abstractions
                 ErrorMessage = errorMessage
             });
         }
+        
+        /// <inheritdoc/>
+        public abstract Task BondAsync(IDevice device);
+
+        /// <summary>
+        /// Handle bond state changed information.
+        /// </summary>
+        /// <param name="args"></param>
+        protected void HandleDeviceBondStateChanged(DeviceBondStateChangedEventArgs args)
+        {
+            DeviceBondStateChanged?.Invoke(this, args);
+        }
+
+        /// <summary>
+        /// Connects to a device with a known GUID without scanning and if in range. Does not scan for devices.
+        /// </summary>
+        public async Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters = default, CancellationToken cancellationToken = default)
+        {
+            if (DiscoveredDevicesRegistry.TryGetValue(deviceGuid, out IDevice discoveredDevice))
+            {
+                await ConnectToDeviceAsync(discoveredDevice, connectParameters, cancellationToken);
+                return discoveredDevice;
+            }
+
+            var connectedDevice = await ConnectToKnownDeviceNativeAsync(deviceGuid, connectParameters, cancellationToken);
+            if (!DiscoveredDevicesRegistry.ContainsKey(deviceGuid)) 
+                DiscoveredDevicesRegistry.TryAdd(deviceGuid, connectedDevice);
+
+            return connectedDevice;
+        }
 
         /// <summary>
         /// Native implementation of StartScanningForDevicesAsync.
@@ -383,9 +421,9 @@ namespace Plugin.BLE.Abstractions
         protected abstract Task<IDevice> ConnectNativeAsync(Guid uuid, Func<IDevice, bool> deviceFilter, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
-        /// Connects to a device with a known GUID without scanning and if in range. Does not scan for devices.
+        /// Native implementation of ConnectToKnownDeviceAsync.
         /// </summary>
-        public abstract Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters = default, CancellationToken cancellationToken = default);
+        public abstract Task<IDevice> ConnectToKnownDeviceNativeAsync(Guid deviceGuid, ConnectParameters connectParameters = default, CancellationToken cancellationToken = default);
         /// <summary>
         /// Returns all BLE devices connected to the system.
         /// </summary>
@@ -394,15 +432,19 @@ namespace Plugin.BLE.Abstractions
         /// Returns a list of paired BLE devices for the given UUIDs.
         /// </summary>
         public abstract IReadOnlyList<IDevice> GetKnownDevicesByIds(Guid[] ids);
+        /// <summary>
+        /// Returns all BLE device bonded to the system.
+        /// </summary>
+        protected abstract IReadOnlyList<IDevice> GetBondedDevices();
 
         /// <summary>
         /// Indicates whether extended advertising (BLE5) is supported.
         /// </summary>
-        public virtual bool supportsExtendedAdvertising() => false;
+        public virtual bool SupportsExtendedAdvertising() => false;
 
         /// <summary>
         /// Indicates whether the Coded PHY feature (BLE5) is supported.
         /// </summary>
-        public virtual bool supportsCodedPHY() => false;
+        public virtual bool SupportsCodedPHY() => false;
     }
 }

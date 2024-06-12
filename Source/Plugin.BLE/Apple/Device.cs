@@ -173,10 +173,19 @@ namespace Plugin.BLE.iOS
             Trace.Message("Cannot update connection inteval on iOS.");
             return false;
         }
-
+        
         public override bool IsConnectable { get; protected set; }
 
         public override bool SupportsIsConnectable { get => true; }
+        
+        protected override DeviceBondState GetBondState()
+        {
+            return DeviceBondState.NotSupported;
+        }
 
+        public override bool UpdateConnectionParameters(ConnectParameters connectParameters = default)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -152,6 +152,11 @@ namespace Plugin.BLE.iOS
                 };
         }
 
+        public override Task BondAsync(IDevice device)
+        {
+            throw new NotSupportedException();
+        }
+
         protected override async Task StartScanningForDevicesNativeAsync(ScanFilterOptions scanFilterOptions, bool allowDuplicatesKey, CancellationToken scanCancellationToken)
         {
 #if NET6_0_OR_GREATER || MACCATALYST
@@ -223,7 +228,7 @@ namespace Plugin.BLE.iOS
         /// </summary>
         /// <returns>The to known device async.</returns>
         /// <param name="deviceGuid">Device GUID.</param>
-        public override async Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters = default(ConnectParameters), CancellationToken cancellationToken = default(CancellationToken))
+        public override async Task<IDevice> ConnectToKnownDeviceNativeAsync(Guid deviceGuid, ConnectParameters connectParameters = default(ConnectParameters), CancellationToken cancellationToken = default(CancellationToken))
         {
 #if NET6_0_OR_GREATER || MACCATALYST
             await WaitForState(CBManagerState.PoweredOn, cancellationToken, true);
@@ -233,7 +238,7 @@ namespace Plugin.BLE.iOS
 #endif
 
             if (cancellationToken.IsCancellationRequested)
-                throw new TaskCanceledException("ConnectToKnownDeviceAsync cancelled");
+                throw new TaskCanceledException("ConnectToKnownDeviceNativeAsync cancelled");
 
             //FYI attempted to use tobyte array insetead of string but there was a problem with byte ordering Guid->NSUui
             var uuid = new NSUuid(deviceGuid.ToString());
@@ -259,7 +264,7 @@ namespace Plugin.BLE.iOS
                 );
 
                 if (peripherial == null)
-                    throw new Exception($"[Adapter] Device {deviceGuid} not found.");
+                    throw new Abstractions.Exceptions.DeviceConnectionException(deviceGuid, "", $"[Adapter] Device {deviceGuid} not found.");
             }
 
             var device = new Device(this, peripherial, _bleCentralManagerDelegate, peripherial.Name, peripherial.RSSI?.Int32Value ?? 0, new List<AdvertisementRecord>());
@@ -292,6 +297,11 @@ namespace Plugin.BLE.iOS
                 ids.Select(guid => new NSUuid(guid.ToString())).ToArray());
 
             return nativeDevices.Select(d => new Device(this, d, _bleCentralManagerDelegate)).Cast<IDevice>().ToList();
+        }
+
+        protected override IReadOnlyList<IDevice> GetBondedDevices()
+        {
+            return null; // not supported
         }
 
 #if NET6_0_OR_GREATER || MACCATALYST
@@ -607,7 +617,7 @@ namespace Plugin.BLE.iOS
         }
 
 #if NET6_0_OR_GREATER || __IOS__
-        public override bool supportsExtendedAdvertising()
+        public override bool SupportsExtendedAdvertising()
         {
 #if NET6_0_OR_GREATER
             if (OperatingSystem.IsIOSVersionAtLeast(13) || OperatingSystem.IsTvOSVersionAtLeast(13) || OperatingSystem.IsMacCatalystVersionAtLeast(13))

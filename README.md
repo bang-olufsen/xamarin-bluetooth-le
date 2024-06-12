@@ -23,7 +23,7 @@ This project was forked in order to support some functionality required by the B
 | Xamarin.iOS     | 7.0               |             |
 | Xamarin.Mac     | 10.9 (Mavericks)  | >= 2.1.0    |
 | Xamarin.UWP     | 1709 - 10.0.16299 | >= 2.2.0    |
-| MAUI (all 4 OS) |                   | >= 3.0.0    |
+| MAUI (Android, iOS, Mac, WinUI) |   | >= 3.0.0    |
 
 ## Nuget Packages
 
@@ -51,7 +51,9 @@ Install-Package MvvmCross.Plugin.BLE
 Install-Package MvvmCross.Plugin.BLE -Pre
 ```
 
-**Android**
+## Permissions
+
+### Android
 
 Add these permissions to AndroidManifest.xml. For Marshmallow and above, please follow [Requesting Runtime Permissions in Android Marshmallow](https://devblogs.microsoft.com/xamarin/requesting-runtime-permissions-in-android-marshmallow/) and don't forget to prompt the user for the location permission.
 
@@ -67,45 +69,46 @@ Android 12 and above may require one or more of the following additional runtime
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
-
 ```
-
 
 Add this line to your manifest if you want to declare that your app is available to BLE-capable devices **only**:
 ```xml
 <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
 ````
 
-**iOS**
+### iOS
 
 On iOS you must add the following keys to your `Info.plist`
 
-    <key>UIBackgroundModes</key>
-    <array>
-        <!--for connecting to devices (client)-->
-        <string>bluetooth-central</string>
+```xml
+<key>UIBackgroundModes</key>
+<array>
+    <!--for connecting to devices (client)-->
+    <string>bluetooth-central</string>
+    <!--for server configurations if needed-->
+    <string>bluetooth-peripheral</string>
+</array>
 
-        <!--for server configurations if needed-->
-        <string>bluetooth-peripheral</string>
-    </array>
+<!--Description of the Bluetooth request message (required on iOS 10, deprecated)-->
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>YOUR CUSTOM MESSAGE</string>
 
-    <!--Description of the Bluetooth request message (required on iOS 10, deprecated)-->
-    <key>NSBluetoothPeripheralUsageDescription</key>
-    <string>YOUR CUSTOM MESSAGE</string>
+<!--Description of the Bluetooth request message (required on iOS 13)-->
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>YOUR CUSTOM MESSAGE</string>
+````
 
-    <!--Description of the Bluetooth request message (required on iOS 13)-->
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>YOUR CUSTOM MESSAGE</string>
-
-**MacOS**
+### MacOS
 
 On MacOS (version 11 and above) you must add the following keys to your `Info.plist`:
 
-    <!--Description of the Bluetooth request message-->
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>YOUR CUSTOM MESSAGE</string>
+```xml
+<!--Description of the Bluetooth request message-->
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>YOUR CUSTOM MESSAGE</string>
+````
 
-**UWP**
+### UWP
 
 Add this line to the Package Manifest (.appxmanifest):
 
@@ -117,7 +120,7 @@ Add this line to the Package Manifest (.appxmanifest):
 
 We provide a sample Xamarin.Forms app, that is a basic bluetooth LE scanner. With this app, it's possible to
 
-- check the ble status
+- check the BLE status
 - discover devices
 - connect/disconnect
 - discover the services
@@ -329,14 +332,14 @@ The BLE API implementation (especially on **Android**) has the following limitat
     }
 ```
 
-- **Avoid caching of Characteristic or Service instances between connection sessions**. This includes saving a reference to them in your class between connection sessions etc. After a device has been disconnected all Service & Characteristic instances become **invalid**. Allways **use GetServiceAsync and GetCharacteristicAsync to get a valid instance**.
+- **Avoid caching of Characteristic or Service instances between connection sessions**. This includes saving a reference to them in your class between connection sessions etc. After a device has been disconnected all Service & Characteristic instances become **invalid**. Always **use GetServiceAsync and GetCharacteristicAsync to get a valid instance**.
 
 ### General BLE iOS, Android
 
-- Scanning: Avoid performing ble device operations like Connect, Read, Write etc while scanning for devices. Scanning is battery-intensive.
-    - try to stop scanning before performing device operations (connect/read/write/etc)
-    - try to stop scanning as soon as you find the desired device
-    - never scan on a loop, and set a time limit on your scan
+- Scanning: Avoid performing BLE device operations like Connect, Read, Write etc while scanning for devices. Scanning is battery-intensive.
+    - Try to stop scanning before performing device operations (connect/read/write/etc).
+    - Try to stop scanning as soon as you find the desired device.
+    - Never scan on a loop, and set a time limit on your scan.
 
 ## How to build the nuget package
 

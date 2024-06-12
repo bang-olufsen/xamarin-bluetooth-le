@@ -1,6 +1,62 @@
 # Changelog
 
+## 3.1 .NET 8 & Gemeric Windows Implementation
+
+### 3.1.0
+- #844 Fix Device.UpdateRssiAsync on Windows (fixes #810)
+- #845 Implement Adapter.SupportsExtendedAdvertising on Windows (fixes #815)
+- #848 Windows: Fixed null entries in DiscoveredDevices (fixes #828)
+- #849 Windows: Connect -> ConnectionLost -> Reconnect (fixes #826)
+- #853 Windows: Check for OS build number version Runtime (fixes #852)
+- #855 Android: Bluetooth stack breaks when trying connect on phone boot (fixes #854)
+- #858 Windows: Fixed StartUpdatesNativeAsync for indicate (fixes #847)
+
+#### 3.1.0-rc.1
+- #820 Windows Implementation for BondAsync and BondedDevices
+- #839 Windows: Handle that a device is already connected
+
+#### 3.1.0-beta.3
+- #823 Implement BleImplementation.TrySetStateAsync on Android (fixes #821)
+- #827 Fix a NullReferenceException in Characteristic.NSErrorToGattStatus on iOS (fixes #825)
+
+#### 3.1.0-beta.2
+- #784 Turn Bluetooth Radio On/Off
+- #801 Connection parameters for Windows
+- #805 Added services for Citysports treadmill (fixes #804)
+- #807 Fix GetSystemConnectedOrPairedDevices in Windows
+- #809 Fix ConnectionLost -> Connect for Windows
+
+#### 3.1.0-beta.1
+- #746 Windows.Devices.Bluetooth Only
+- #764 ReadAsync updates characteristic value on Windows
+- #770 Remove .NET 6
+- #773 Added BroadcastName to AdvertisementRecordType (fixes #772)
+- #774 disable MainThreadInvoker in Adapter.ConnectToDeviceAsync (fixes #757)
+- #776 Improve Connect In Windows
+- #777 StateChanged for Windows
+- #778 Add support for .NET 8
+
+
 ## 3.0 MAUI
+
+#### 3.0.0
+- Add support for MAUI (.NET 6 and 7), while keeping compatibility with Xamarin
+- Add support for Windows (UWP & WinUI, experimental)
+- Various improvements and bugfixes (see beta- and pre-releases)
+
+#### 3.0.0-rc.1
+- #730 Bonding on Android (fixes #690)
+- #740 Target Android 13 everywhere
+
+#### 3.0.0-beta.6
+- #728 Add Windows support for RequestMtuAsync (fixes #727)
+- #735 Fix DisconnectAsync hangs on Windows and Android after scanning then connecting with ConnectToKnownDeviceAsync (fixes #734)
+- #736 Add MAUI sample client
+
+#### 3.0.0-beta.5
+- #721 Fix Windows connect/disconnect issues (fixes #423, #528, #536, #620)
+- #719 Fixed crash with incorrect data in advertisement data on Android (fixes #567, #713)
+- #708 Coding style fixes (fixes #693)
 
 #### 3.0.0-beta.4
 - #669 Return error codes to application
@@ -20,6 +76,7 @@
 - Add support for .NET 6 and MAUI, while keeping compatibility with Xamarin
 - #614 Upgrade to .NET 6
 - #638 GitHub Actions: update to .NET 7 (fixes #622, #626, #630)
+
 
 ## 2.2 UWP
 
@@ -45,6 +102,7 @@
 
 #### 2.2.0-pre.1 UWP
 - UWP support pre-release
+
 
 ## 2.1 MacOS  
 

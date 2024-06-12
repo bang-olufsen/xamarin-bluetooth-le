@@ -96,7 +96,7 @@ namespace Plugin.BLE.Android
                         break;
                     }
                     else
-                    { 
+                    {
                         //connection must have been lost, because the callback was not triggered by calling disconnect
                         Trace.Message($"Disconnected '{_device.Name}' by lost connection");
 

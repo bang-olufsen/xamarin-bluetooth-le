@@ -8,10 +8,15 @@ namespace Plugin.BLE.Abstractions.Utils
 {
     internal class FakeAdapter : AdapterBase
     {
-        public override Task<IDevice> ConnectToKnownDeviceAsync(Guid deviceGuid, ConnectParameters connectParameters, CancellationToken cancellationToken)
+        public override Task<IDevice> ConnectToKnownDeviceNativeAsync(Guid deviceGuid, ConnectParameters connectParameters, CancellationToken cancellationToken)
         {
             TraceUnavailability();
             return Task.FromResult<IDevice>(null);
+        }
+
+        public override Task BondAsync(IDevice device)
+        {
+            return Task.FromResult(0);
         }
 
         protected override Task StartScanningForDevicesNativeAsync(ScanFilterOptions scanFilterOptions, bool allowDuplicatesKey, CancellationToken scanCancellationToken)
@@ -45,6 +50,11 @@ namespace Plugin.BLE.Abstractions.Utils
         {
             TraceUnavailability();
             return new List<IDevice>();
+        }
+
+        protected override IReadOnlyList<IDevice> GetBondedDevices()
+        {
+            return null; // not supported
         }
 
         public override IReadOnlyList<IDevice> GetKnownDevicesByIds(Guid[] ids)
