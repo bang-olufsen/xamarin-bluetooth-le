@@ -90,7 +90,7 @@ namespace Plugin.BLE.Android
                             _adapter.ConnectedDeviceRegistry.Remove(gatt.Device.Address);
                         }
 
-                        if (status != GattStatus.Success)
+                        if (status != GattStatus.Success || status is GattStatus.InsufficientAuthentication)
                         {
                             // The above error event handles the case where the error happened during a Connect call, which will close out any waiting asyncs.
                             // Android > 5.0 uses this switch branch when an error occurs during connect
