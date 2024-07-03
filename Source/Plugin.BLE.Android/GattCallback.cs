@@ -78,6 +78,12 @@ namespace Plugin.BLE.Android
                     // Close GATT regardless, else we can accumulate zombie gatts.
                     CloseGattInstances(gatt);
 
+                    //nasty hack until we update the BLE Plugin
+                    if (status is GattStatus.InsufficientAuthentication)
+                    {
+                        _device.IsOperationRequested = true;
+                    }
+
                     if (_device.IsOperationRequested)
                     {
                         Trace.Message("Disconnected by user");
