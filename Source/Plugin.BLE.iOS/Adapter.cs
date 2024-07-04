@@ -174,13 +174,13 @@ namespace Plugin.BLE.iOS
             // move ConnectToDeviceAsync() code to native implementations.
             cancellationToken.Register(() =>
             {
-                if (device.Name.Contains("H100", StringComparison.OrdinalIgnoreCase))
-                {
-                    Trace.Message("H100 we call failed connection");
+                //if (device.Name.Contains("H100", StringComparison.OrdinalIgnoreCase))
+                //{
+                //    Trace.Message("H100 we call failed connection");
 
-                    //NSError error = new NSError(new NSString("CBErrorDomain"), CBATTError.InsufficientEncryption)
-                    HandleConnectionFail(device, "CBATTError.InsufficientEncryption");
-                }
+                //    //NSError error = new NSError(new NSString("CBErrorDomain"), CBATTError.InsufficientEncryption)
+                //    HandleConnectionFail(device, "CBATTError.InsufficientEncryption");
+                //}
 
                 Trace.Message("Canceling the connect attempt");
                 _centralManager.CancelPeripheralConnection(device.NativeDevice as CBPeripheral);
