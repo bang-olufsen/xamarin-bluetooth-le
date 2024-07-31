@@ -191,9 +191,9 @@ namespace Plugin.BLE.iOS
 
         /// <summary>
         /// Connects to known device async.
-        /// 
+        ///
         /// https://developer.apple.com/library/ios/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/BestPracticesForInteractingWithARemotePeripheralDevice/BestPracticesForInteractingWithARemotePeripheralDevice.html
-        /// 
+        ///
         /// </summary>
         /// <returns>The to known device async.</returns>
         /// <param name="deviceGuid">Device GUID.</param>
@@ -260,9 +260,9 @@ namespace Plugin.BLE.iOS
             /*var keys = new List<NSString>
             {
                 CBAdvertisement.DataLocalNameKey,
-                CBAdvertisement.DataManufacturerDataKey, 
+                CBAdvertisement.DataManufacturerDataKey,
                 CBAdvertisement.DataOverflowServiceUUIDsKey, //ToDo ??which one is this according to ble spec
-                CBAdvertisement.DataServiceDataKey, 
+                CBAdvertisement.DataServiceDataKey,
                 CBAdvertisement.DataServiceUUIDsKey,
                 CBAdvertisement.DataSolicitedServiceUUIDsKey,
                 CBAdvertisement.DataTxPowerLevelKey
@@ -321,7 +321,7 @@ namespace Plugin.BLE.iOS
                             //Get the service key in bytes (from NSData)
                             byte[] keyAsData = dKey.Data.ToArray();
 
-                            //Service UUID's are read backwards (little endian) according to specs, 
+                            //Service UUID's are read backwards (little endian) according to specs,
                             //CoreBluetooth returns the service UUIDs as Big Endian
                             //but to match the raw service data returned from Android we need to reverse it back
                             //Note haven't tested it yet on 128bit service UUID's, but should work

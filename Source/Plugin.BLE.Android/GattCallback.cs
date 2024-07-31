@@ -78,9 +78,10 @@ namespace Plugin.BLE.Android
                     // Close GATT regardless, else we can accumulate zombie gatts.
                     CloseGattInstances(gatt);
 
-                    if (_device.IsOperationRequested)
+                    //nasty hack until we update the BLE Plugin
+                    if (_device.IsOperationRequested || status == GattStatus.InsufficientAuthentication)
                     {
-                        Trace.Message("Disconnected by user");
+                        Trace.Message("Disconnected by user or GattStatus.InsufficientAuthentication");
 
                         //Found so we can remove it
                         _device.IsOperationRequested = false;
@@ -89,7 +90,7 @@ namespace Plugin.BLE.Android
                             _adapter.ConnectedDeviceRegistry.Remove(gatt.Device.Address);
                         }
 
-                        if (status != GattStatus.Success)
+                        if (status != GattStatus.Success || status == GattStatus.InsufficientAuthentication)
                         {
                             // The above error event handles the case where the error happened during a Connect call, which will close out any waiting asyncs.
                             // Android > 5.0 uses this switch branch when an error occurs during connect
@@ -144,7 +145,7 @@ namespace Plugin.BLE.Android
                         _device.Update(gatt.Device, gatt);
                     }
 
-                    if (status != GattStatus.Success)
+                    if (status != GattStatus.Success || status == GattStatus.InsufficientAuthentication)
                     {
                         // The above error event handles the case where the error happened during a Connect call, which will close out any waiting asyncs.
                         // Android <= 4.4 uses this switch branch when an error occurs during connect
