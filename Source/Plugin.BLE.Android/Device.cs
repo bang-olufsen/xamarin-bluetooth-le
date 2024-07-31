@@ -188,22 +188,27 @@ namespace Plugin.BLE.Android
             GattServer?.Close();
             GattServer = null;
 
-            while (_gattList.Any())
+            while (_gattList.Count() > 0)
             {
-                var g = _gattList.Dequeue();
-                if (g != null)
+                try
                 {
-                    try
+                    var g = _gattList.Dequeue();
+                    if (g != null)
                     {
                         g.Disconnect();
                         g.Close();
                     }
-                    catch (Exception e)
-                    {
-                        Trace.Message(e.Message);
-                        throw;
-                    }
                 }
+                catch (InvalidOperationException invalidOpException)
+                {
+                    Trace.Message($"Gatt queue is empty while trying to close gatt instances: {invalidOpException.Message}. Queue size: {_gattList.Count()}");
+                    break;
+                }
+                catch (Exception e)
+                {
+                    Trace.Message($"Error while closing gatt instances: {e.Message}");
+                }
+
             }
 
             // ClossGatt might will get called on signal loss without Disconnect being called we have to make sure we clear the services
